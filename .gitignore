@@ -6,3 +6,4 @@ java/B/*
 .river_log.txt
 level.dat
 versions/
+logs/

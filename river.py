@@ -11,8 +11,8 @@ import hashlib
 
 true = True
 false = False
-curBuild = 7
-builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7"}
+curBuild = 8
+builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7", 8: "v0.8"}
 
 
 def makeDir(dirName):
@@ -35,6 +35,8 @@ makeDir(".minecraft\\assets")
 makeDir(".minecraft\\libraries")
 makeDir(".minecraft\\assets\\indexes")
 makeDir(".minecraft\\assets\\objects")
+os.system("rmdir .river_tmp /S /Q")
+makeDir(".river_tmp")
 lang = eval(open("langs\\en.json", encoding="utf-8").read())
 defaultCfg = {"lang": "en", "version": curBuild, "latest": "", "accounts": {}, "selectedAccount": 0, "selectedLaunch": 0, "settings": {"downloadRenderDistance": {"value": 7, "type": "int"}, "resolutionWidth": {"value": 1618, "type": "int"}, "resolutionHeight": {"value": 1000, "type": "int"}, "info": {"value": lang["sets.info.value"].replace("%1", builds[curBuild]), "type": "static"}}, "THANKS_FOR": {"Python": "source support", "Minecraft":"game to launch", "PCL & HMCL":"launch bat refrence", "HlHill":"write source code"}}
 if (not os.path.isfile(".river_cfg.json")):
@@ -167,7 +169,7 @@ def makeLaunch(versionId):
                 .replace("${auth_session}", accounts[list(accounts)[selectedAccount]]["accessToken"])
                 .replace("${user_type}", accounts[list(accounts)[selectedAccount]]["usrType"])
                 .replace("${clientId}", accounts[list(accounts)[selectedAccount]]["usrId"])
-                .replace("${launcher_name}", "River")
+                .replace("${launcher_name}", "river-launcher")
                 .replace("${launcher_version}", builds[curBuild])
                 .replace("${version_type}", versionInfo["type"])
                 .replace("${resolution_width}", str(settings["resolutionWidth"]["value"]))
@@ -202,7 +204,7 @@ def makeLaunch(versionId):
                 if (type(tmp) != str):
                     if (i["rules"][0]["os"]["name"] == "windows"):
                         for j in tmp:
-                            jvmArg.append(j)
+                            jvmArg.append(j.replace("/", "\\\\"))
     jvmArg = " ".join(jvmArg)
     output = open(".minecraft\\versions\\"+versionId+"\\river_launch.bat", "w")
     output.write("@echo off\n")
@@ -333,7 +335,7 @@ def pageOptifine(version):
                 print(" [", end = "")
             else:
                 print("  ", end = "")
-            print(wrappers[i][1], end = "")
+            print(wrappers[i][1] + ", recommend " + wrappers[i][3], end = "")
             if (i == selectedWrapper):
                 print("] ")
             else:
@@ -392,6 +394,69 @@ def pageOptifine(version):
         yN = ["-".join(yN[:-1]), yN[-1]]
         yN = ":".join(yN)
         return (wrapperName, yN)
+
+
+def pageForge(version):
+    indexes = requests.get("https://files.minecraftforge.net/net/minecraftforge/forge/index_" + version + ".html")
+    if ("404 Not Found" in indexes.content.decode("utf-8")):
+        return 0
+    sel = 0
+    while 1:
+        if (sel == 0): print(lang["forge.prompt"].replace("%1", lang["sel.yes"]), end = "")
+        if (sel == 1): print(lang["forge.prompt"].replace("%1", lang["sel.no"]), end = "")
+        tmp = msvcrt.getch()
+        if (tmp == b'x'):
+            return 0
+        if (tmp == b'a'):
+            if (sel != 0):
+                sel -= 1
+        if (tmp == b'd'):
+            if (sel != 1):
+                sel += 1
+        if (tmp == b' '):
+            if (sel == 0):
+                break
+            else:
+                return 0
+    content = indexes.content.decode("utf-8")
+    content = content.replace('                                    <i class="promo-recommended promo-latest  fa"></i>', "")
+    content = content.replace('                                    <i class="promo-recommended  fa"></i>', "")
+    content = content.replace('                                    <i class="promo-latest  fa"></i>', "")
+    indexes = sp(content, "<tbody>", "</tbody>").split("</tr>")
+    loaders = []
+    for i in indexes[:-1]:
+        loaders.append([i.splitlines()[4][32:], sp(i.splitlines()[33], "<br><a href=\"", "\">(Direct Download)</a>")])
+    selectedLoader = 0
+    while 1:
+        showTitle(lang["title.modify"].replace("%1", lang["mod.forge"]))
+        for i in range(selectedLoader, selectedLoader + settings["downloadRenderDistance"]["value"]): 
+            if (i >= len(loaders)):
+                break
+            if (i == selectedLoader): print("[ ", end = "")
+            else: print("  ", end = "")
+            print(loaders[i][0], end = "")
+            if (i == selectedLoader): print(" ]", end = "")
+            else: print("  ", end = "")
+            print()
+        press = msvcrt.getch()
+        if (press == b'x'):
+            return 0
+        if (press == b'w'):
+            if (selectedLoader != 0):
+                selectedLoader -= 1
+        if (press == b's'):
+            if (selectedLoader != (len(loaders)-1)):
+                selectedLoader += 1
+        if (press == b' '):
+            get(loaders[selectedLoader][1], saveIn = ".river_tmp\\")
+            zipFile = zipfile.ZipFile(".river_tmp\\" + os.path.split(loaders[selectedLoader][1])[1])
+            zipFile.extract("version.json", ".river_tmp\\")
+            os.rename(".river_tmp\\version.json", ".river_tmp\\forge.json")
+            infoFile = open(".river_tmp\\forge.json")
+            info = eval(infoFile.read())
+            infoFile.close()
+            break
+    return info
 
 
 downloads = []
@@ -490,6 +555,7 @@ def pageDownloads():
                 makeDir(".minecraft\\versions\\" + customName)
                 versionInfo = eval(get(downloads[selectedDownload]["url"], saveIn = (".minecraft\\versions\\" + customName), saveAs = (customName + ".json")))
                 versionInfo["id"] = customName
+                versionInfo["river_origin"] = originName
                 if (fabric != 0): 
                     versionInfo["releaseTime"] = fabric["releaseTime"]
                     versionInfo["time"] = fabric["time"]
@@ -507,6 +573,15 @@ def pageDownloads():
                         elif (len(optifine) == 1):
                             versionInfo["libraries"].append({"name": "optifine:OptiFine:" + optifine[0]})
                         versionInfo["mainClass"] = "net.minecraft.launchwrapper.Launch"
+                    forge = pageForge(originName)
+                    if (forge != 0): 
+                        versionInfo["releaseTime"] = forge["releaseTime"]
+                        versionInfo["time"] = forge["time"]
+                        versionInfo["type"] = forge["type"]
+                        versionInfo["mainClass"] = forge["mainClass"]
+                        versionInfo["arguments"]["game"] += forge["arguments"]["game"]
+                        versionInfo["arguments"]["jvm"] += forge["arguments"]["jvm"]
+                        versionInfo["libraries"] += forge["libraries"]
                 json.dump(versionInfo, open(".minecraft\\versions\\"+versionInfo["id"]+"\\" + customName + ".json", "w"), indent=2, sort_keys=True, ensure_ascii=False)
                 # Assets
                 assetsInfo = eval(get(versionInfo["assetIndex"]["url"], saveIn = ".minecraft\\assets\\indexes"))
@@ -612,19 +687,26 @@ def pageLaunch():
             if (i == selectedLaunch): print("[ ", end = "")
             else: print("  ", end = "")
             print(launch[i], end = "")
+            versionName = launch[i]
             if (i == selectedLaunch): print(" ]", end = "")
             else: print("  ", end = "")
             infoFile = open(".minecraft\\versions\\" + launch[i] + "\\" + launch[i] + ".json")
             info = eval(infoFile.read())
             infoFile.close()
             infos = []
+            origin = info["river_origin"]
             try: 
                 if ("net.fabricmc" in info["libraries"][-1]["name"]):
+                    if ("net.fabricmc:intermediary" in info["libraries"][-2]["name"]):
+                        origin = info["libraries"][-2]["name"].split(":")[-1]
+                    else:
+                        origin = "Unknown"
                     infos.append(lang["mod.fabric"] + " " + info["libraries"][-1]["name"].split(":")[-1])
             except KeyError:
                 pass
             try: 
                 if ("net.minecraftforge" in info["libraries"][-1]["name"]):
+                    origin = info["arguments"]["game"][info["arguments"]["game"].index("--fml.mcVersion")+1]
                     infos.append(lang["mod.forge"] + " " + info["libraries"][-1]["name"].split("-")[-1])
             except KeyError:
                 pass
@@ -633,10 +715,13 @@ def pageLaunch():
                     tmp = ""
                     for i in info["libraries"]:
                         if ("optifine:OptiFine" in i["name"]):
+                            origin = i["name"].split(":")[-1].split("_")[0]
                             tmp = "_".join(i["name"].split(":")[-1].split("_")[1:])
                     infos.append(lang["mod.optifine"] + " " + tmp)
             except KeyError:
                 pass
+            if (origin != versionName):
+                infos.append(lang["mod.origin"] + " " + origin)
             if (infos != []): 
                 print(" (" + ", ".join(infos) + ") ", end = "")
             print()
@@ -678,7 +763,13 @@ def pageLaunch():
                         if (selectedLaunch == len(launch)):
                             selectedLaunch -= 1
                         os.system("rmdir .minecraft\\versions\\" + versionName + " /S /Q")
-                        break
+                    break
+        if (press == b'r'):
+            oldName = launch[selectedLaunch]
+            newName = input(lang["launch.rename"].replace("%1", oldName))
+            os.rename(".minecraft\\versions\\" + oldName + "\\" + oldName + ".jar", ".minecraft\\versions\\" + oldName + "\\" + newName + ".jar")
+            os.rename(".minecraft\\versions\\" + oldName + "\\" + oldName + ".json", ".minecraft\\versions\\" + oldName + "\\" + newName + ".json")
+            os.rename(".minecraft\\versions\\" + oldName, ".minecraft\\versions\\" + newName)
         if (press == b'f'):
             if (launch == []):
                 print(lang["launch.instead"])
@@ -895,20 +986,8 @@ while 1:
         config.write(str(cfg))
         config.close()
         up = []
-        up.append(("Fixed bugs", ))
-        up.append(("Could now launch 1.7.x and 1.8.x", ))
-        up.append(("Added Help", ))
-        up.append(("Could now remove versions and accounts",
-                   "Modified update log showing"))
-        up.append(("Could now open location directories of versions",
-                   "Would now downloads logging xml file",
-                   "Modified update log showing"))
-        up.append(("When downloading Minecraft, would now ask to install Fabric",
-                   "Could now see the info of Minecraft",
-                   "Modified update log showing",
-                   "Fixed legacy versions' ${auth_session} bug",
-                   "Would now check Minecraft's sha1 hash value"))
-        up.append(("Now support multi-language", ))
+        for i in range(curBuild):
+            up.append(lang["update.build." + str(i+1)])
         print(lang["main.update"].replace("%1", updateFromVer).replace("%2", builds[curBuild]))
         for i in range(updateFrom, curBuild+1):
             if (updateFrom < i):
