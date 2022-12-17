@@ -694,7 +694,10 @@ def pageLaunch():
             info = eval(infoFile.read())
             infoFile.close()
             infos = []
-            origin = info["river_origin"]
+            if ("river_origin" in info): 
+                origin = info["river_origin"]
+            else: 
+                origin = versionName
             try: 
                 if ("net.fabricmc" in info["libraries"][-1]["name"]):
                     if ("net.fabricmc:intermediary" in info["libraries"][-2]["name"]):
