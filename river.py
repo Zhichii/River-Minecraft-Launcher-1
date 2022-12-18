@@ -160,7 +160,7 @@ def makeLaunch(versionId):
         except:
             pass
         avalible[theVersion] = libName
-    print(avalible)
+    writeLog(avalible)
     for i in avalible:
         tmp.append(avalible[i])
     tmp.append(cwd+".minecraft\\\\versions\\\\"+versionId+"\\\\"+versionId+".jar")
