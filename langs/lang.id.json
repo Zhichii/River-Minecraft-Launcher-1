@@ -10,7 +10,6 @@
   "mod.fabric": "mod.fabric", 
   "mod.forge": "mod.forge", 
   "mod.optifine": "mod.optifine", 
-  "mod.origin": "mod.origin", 
   "title.main": "title.main", 
   "title.modify": "title.modify", 
   "title.downloads": "title.downloads", 
@@ -20,6 +19,7 @@
   "title.language": "title.language", 
   "fabric.prompt": "fabric.prompt", 
   "optifine.prompt": "optifine.prompt", 
+  "optifine.forge": "forge.optifine", 
   "forge.prompt": "fabric.prompt", 
   "downloads.latest": "downloads.latest", 
   "downloads.latests": "downloads.latests", 
@@ -77,5 +77,6 @@
   "update.build.5": ("update.build.5", ), 
   "update.build.6": ("update.build.6", ), 
   "update.build.7": ("update.build.7", ), 
-  "update.build.8": ("update.build.8", )
+  "update.build.8": ("update.build.8", ), 
+  "update.build.9": ("update.build.9", )
 }

@@ -11,8 +11,8 @@ import hashlib
 
 true = True
 false = False
-curBuild = 9
-builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7", 8: "v0.8.0", 9: "v0.8.1"}
+curBuild = 8
+builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7", 8: "v0.8"}
 
 
 def makeDir(dirName):
@@ -374,8 +374,8 @@ def pageOptifine(version):
                     break
             if (x != ""): get(x, saveIn = (".minecraft\\libraries\\optifine\\Optifine\\" + wrapperName), saveAs = ("OptiFine-" + wrapperName + ".jar"))
             else:
-                writeLog("Unable to get download " + str(wrapper))
-                raise ValueError("Unable to get download " + str(wrapper))
+                writeLog("Unable to get optifine " + str(wrapper))
+                raise ValueError("Unable to get optifine " + str(wrapper))
             break
         if (press == b'x'):
             return 0
@@ -432,7 +432,7 @@ def pageForge(version):
     indexes = sp(content, "<tbody>", "</tbody>").split("</tr>")
     loaders = []
     for i in indexes[:-1]:
-        loaders.append([i.splitlines()[4][32:], sp(i.splitlines()[33], "<br><a href=\"", "\">(Direct Download)</a>")])
+        loaders.append([i.splitlines()[4][32:], sp(i, "<br><a href=\"", "\">(Direct Download)</a>")])
     selectedLoader = 0
     while 1:
         showTitle(lang["title.modify"].replace("%1", lang["mod.forge"]))
@@ -457,10 +457,18 @@ def pageForge(version):
         if (press == b' '):
             get(loaders[selectedLoader][1], saveIn = ".river_tmp\\")
             zipFile = zipfile.ZipFile(".river_tmp\\" + os.path.split(loaders[selectedLoader][1])[1])
-            zipFile.extract("version.json", ".river_tmp\\")
-            os.rename(".river_tmp\\version.json", ".river_tmp\\forge.json")
+            x = 0
+            try:
+                zipFile.extract("version.json", ".river_tmp\\")
+                os.rename(".river_tmp\\version.json", ".river_tmp\\forge.json")
+                x = 1
+            except:
+                zipFile.extract("install_profile.json", ".river_tmp\\")
+                os.rename(".river_tmp\\install_profile.json", ".river_tmp\\forge.json")
             infoFile = open(".river_tmp\\forge.json")
             info = eval(infoFile.read())
+            if (x == 0):
+                info = info["versionInfo"]
             infoFile.close()
             break
     return info
@@ -578,22 +586,28 @@ def pageDownloads():
                     versionInfo["libraries"] += fabric["libraries"]
                 if (fabric == 0):
                     optifine = pageOptifine(originName)
-                    if (optifine != 0):
-                        versionInfo["arguments"]["game"] += ["--tweakClass", "optifine.OptiFineTweaker"]
-                        if (len(optifine) == 2): 
-                            versionInfo["libraries"] += [{"name": "optifine:OptiFine:" + optifine[0]}, {"name": "optifine:" + optifine[1]}]
-                        elif (len(optifine) == 1):
-                            versionInfo["libraries"].append({"name": "optifine:OptiFine:" + optifine[0]})
-                        versionInfo["mainClass"] = "net.minecraft.launchwrapper.Launch"
                     forge = pageForge(originName)
                     if (forge != 0): 
                         versionInfo["releaseTime"] = forge["releaseTime"]
                         versionInfo["time"] = forge["time"]
                         versionInfo["type"] = forge["type"]
                         versionInfo["mainClass"] = forge["mainClass"]
-                        versionInfo["arguments"]["game"] += forge["arguments"]["game"]
-                        versionInfo["arguments"]["jvm"] += forge["arguments"]["jvm"]
+                        if (versionInfo["complianceLevel"] == 1): 
+                            versionInfo["arguments"]["game"] += forge["arguments"]["game"]
+                            versionInfo["arguments"]["jvm"] += forge["arguments"]["jvm"]
+                        if (versionInfo["complianceLevel"] == 0):
+                            versionInfo["minecraftArguments"] = forge["minecraftArguments"]
                         versionInfo["libraries"] += forge["libraries"]
+                    if (optifine != 0):
+                        if (versionInfo["complianceLevel"] == 1): versionInfo["arguments"]["game"] += ["--tweakClass", "optifine.OptiFineTweaker"]
+                        if (versionInfo["complianceLevel"] == 0):
+                            if (forge == 0): versionInfo["minecraftArguments"] += " --tweakClass optifine.OptiFineTweaker"
+                            if (forge != 0): versionInfo["minecraftArguments"] += " --tweakClass optifine.OptiFineForgeTweaker"
+                        if (len(optifine) == 2): 
+                            versionInfo["libraries"] += [{"name": "optifine:OptiFine:" + optifine[0]}, {"name": "optifine:" + optifine[1]}]
+                        elif (len(optifine) == 1):
+                            versionInfo["libraries"].append({"name": "optifine:OptiFine:" + optifine[0]})
+                        versionInfo["mainClass"] = "net.minecraft.launchwrapper.Launch"
                 json.dump(versionInfo, open(".minecraft\\versions\\"+versionInfo["id"]+"\\" + customName + ".json", "w"), indent=2, sort_keys=True, ensure_ascii=False)
                 # Assets
                 assetsInfo = eval(get(versionInfo["assetIndex"]["url"], saveIn = ".minecraft\\assets\\indexes"))
@@ -676,7 +690,10 @@ def pageDownloads():
                 except:
                     pass
                 # End
-                print(lang["downloads.finish"].replace("%1", customName))
+                if (originName == customName): 
+                    print(lang["downloads.finish"].replace("%1", customName))
+                if (originName != customName): 
+                    print(lang["downloads.finish"].replace("%1", customName + " (" + originName + ") "))
                 msvcrt.getch()
 
                 
@@ -719,13 +736,15 @@ def pageLaunch():
                     infos.append(lang["mod.fabric"] + " " + info["libraries"][-1]["name"].split(":")[-1])
             except KeyError:
                 pass
-            try: 
-                if ("net.minecraftforge" in info["libraries"][-1]["name"]):
-                    origin = info["arguments"]["game"][info["arguments"]["game"].index("--fml.mcVersion")+1]
-                    infos.append(lang["mod.forge"] + " " + info["libraries"][-1]["name"].split("-")[-1])
-                if ("net.minecraftforge" in info["libraries"][-3]["name"]):
-                    origin = info["arguments"]["game"][info["arguments"]["game"].index("--fml.mcVersion")+1]
-                    infos.append(lang["mod.forge"] + " " + info["libraries"][-3]["name"].split("-")[-1])
+            try:
+                for i in range(len(info["libraries"])+1): 
+                    if (i == len(info["libraries"])):
+                        raise KeyError("Could not find forge")
+                    if ("net.minecraftforge:forge:" in info["libraries"][i]["name"] or
+                        "net.minecraftforge:fmlloader:" in info["libraries"][i]["name"]):
+                        break
+               #origin = info["arguments"]["game"][info["arguments"]["game"].index("--fml.mcVersion")+1]
+                infos.append(lang["mod.forge"] + " " + info["libraries"][i]["name"].split("-")[1])
             except KeyError:
                 pass
             try:
@@ -737,7 +756,16 @@ def pageLaunch():
                             tmp = "_".join(i["name"].split(":")[-1].split("_")[1:])
                     infos.append(lang["mod.optifine"] + " " + tmp)
             except KeyError:
-                pass
+                try:
+                    if ("optifine.OptiFine" in info["minecraftArguments"]): 
+                        tmp = ""
+                        for i in info["libraries"]:
+                            if ("optifine:OptiFine" in i["name"]):
+                                origin = i["name"].split(":")[-1].split("_")[0]
+                                tmp = "_".join(i["name"].split(":")[-1].split("_")[1:])
+                        infos.append(lang["mod.optifine"] + " " + tmp)
+                except:
+                    pass
             if (origin != versionName):
                 infos = [origin] + infos
             if (infos != []): 

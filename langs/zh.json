@@ -10,7 +10,6 @@
   "mod.fabric": "Fabric", 
   "mod.forge": "Forge",  
   "mod.optifine": "高清修复", 
-  "mod.origin": "原是", 
   "title.main": "河流启动器", 
   "title.modify": "安装%1", 
   "title.downloads": "下载", 
@@ -20,14 +19,15 @@
   "title.language": "语言", 
   "fabric.prompt": "\r"+80*" "+"\r安装Fabric吗? %1", 
   "optifine.prompt": "\r"+80*" "+"\r安装Optifine吗? %1", 
+  "optifine.forge": "%1, 与%2兼容", 
   "forge.prompt": "\r"+80*" "+"\r安装Forge吗? %1", 
   "downloads.latest": "最新的版本: %1", 
   "downloads.latests": "最新的正式版: %1; 最新的快照: %2",
-  "downloads.goto": "跳转到 ["+" "*30+"]\r跳转到 [", 
+  "downloads.goto": "跳转到 ["+" "*30+"] (留空表示最新版本) \r跳转到 [", 
   "downloads.unable": "无法找到版本 \"%1\". ", 
   "downloads.another": "你是说 %2 吗? ",  
   "downloads.prompt": "\r下载版本 \"%1\" 吗? %2", 
-  "downloads.custom": "自定义名称 ["+30*" "+"]\r自定义名称 [", 
+  "downloads.custom": "自定义名称 ["+30*" "+"] (留空表示默认名称) \r自定义名称 [", 
   "downloads.downloading": "\r正在下载%1...", 
   "downloads.finish": "\r"+80*" "+"\r%1下载完成! ", 
   "downloads.assets": "资源", 
@@ -87,5 +87,6 @@
                    "现在会询问是否下载高清修复"), 
   "update.build.8": ("现在会询问是否下载Forge",
                    "现在可以重命名版本了", 
-                   "现在支持多语言的更新日志了")
+                   "现在支持多语言的更新日志了"), 
+  "update.build.9": ("修复了漏洞", )
 }
