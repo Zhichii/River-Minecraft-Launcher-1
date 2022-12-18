@@ -88,5 +88,6 @@
   "update.build.8": ("Would now ask to install Forge",
                    "Could now rename instances", 
                    "Now support multi-language update log"), 
-  "update.build.9": ("Fixed bugs", )
+  "update.build.9": ("Fixed bugs", 
+                   "Would now open \".minecraft\\versions\" folder when pressing \"f\" in page \"Launch\" while no instances there")
 }

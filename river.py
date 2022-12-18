@@ -790,8 +790,7 @@ def pageLaunch():
             os.rename(".minecraft\\versions\\" + oldName, ".minecraft\\versions\\" + newName)
         if (press == b'f'):
             if (launch == []):
-                print(lang["launch.instead"])
-                msvcrt.getch()
+                os.system("explorer .minecraft\\versions")
                 continue
             os.system("explorer .minecraft\\versions\\" + launch[selectedLaunch])
         if (press == b' '):
