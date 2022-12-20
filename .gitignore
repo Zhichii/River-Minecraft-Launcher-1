@@ -5,5 +5,4 @@ java/B/*
 .river_cfg.json
 .river_log.txt
 level.dat
-versions/
 logs/
