@@ -38,7 +38,7 @@
   "do.mods": "启用 / 禁用", 
   "do.mods.all.on": "全部启用", 
   "do.mods.all.off": "全部禁用", 
-  "do.accounts.new": "创建新账户", 
+  "do.accounts.new": "创建 / 登录", 
   "do.accounts": "更改账户", 
   "do.settings": "编辑设置", 
   "do.language": "更改语言", 
@@ -87,6 +87,8 @@
   "accounts.remove": "移除", 
   "accounts.removePrompt": "移除所选账户? ", 
   "accounts.current": "当前账户: %1", 
+  "accounts.loading": "正在登录账户... ", 
+  "accounts.noMinecraft": "对不起, 你没有Minecraft: Java版! 去https://www.minecraft.net/en-us/store/minecraft-java-edition 购买! ", 
   "update.launcher": "启动器有新版本了: %1! \n更新内容: ", 
   "update.launcher.restart": "启动器已更新完毕, 请重启启动器! ", 
   "update.launcher.done": "已从%1更新到了%2! \n更新日志: ", 
@@ -94,7 +96,10 @@
   "main.dialog": "对话框", 
   "main.warn": "警告", 
   "main.warnContent": "不要把文件\".river_cfg.json\"给任何人! 这个文件包含你的私密信息! ", 
-  "main.prev": "进入预先启动模式! ", 
+  "main.usage": "命令行: \n\
+1. 启动: river.py launch [版本名称]\n\
+2. 下载: river.py download [Minecraft版本] [Fabric版本] [Optifine版本] [自定义名称]\n\
+备注: 用\"来代替空项! ", 
   "update.build.1": ("修复了一些漏洞", ), 
   "update.build.2": ("修复了旧版本的${user_properties}漏洞", ), 
   "update.build.3": ("增加了帮助", ), 
@@ -120,5 +125,7 @@
                     "增加了自动更新", 
                     "增加了自动重新登录"), 
   "update.build.12": ("恢复并更改了下载功能", 
-                    "增加了模组管理")
+                    "增加了模组管理"), 
+  "update.build.13": ("更改了所有按钮的样式", 
+                    "已支持离线使用")
 }

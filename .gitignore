@@ -1,7 +1,7 @@
 __pycache__/
 .minecraft*/
-java/A/*
-java/B/*
+assets/java/A/*
+assets/java/B/*
 .river_cfg.json
 .river_log.txt
 level.dat

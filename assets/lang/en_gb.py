@@ -33,13 +33,13 @@
   "do.launch": "Launch Game", 
   "do.launch.working": "Working on Game Arguments", 
   "do.launch.relogin": "Relogining Account", 
-  "do.downloads.edit": "Change Download Option", 
+  "do.downloads.edit": "Edit Download", 
   "do.downloads": "Start Download", 
   "do.mods": "Enable / Disable", 
   "do.mods.all.on": "Enable All", 
   "do.mods.all.off": "Disable All", 
   "do.accounts": "Switch Account", 
-  "do.accounts.new": "Create New Account", 
+  "do.accounts.new": "Create / Login", 
   "do.settings": "Edit Settings", 
   "do.language": "Switch Language", 
   "launch.instead": "Download an instance instead! ", 
@@ -56,8 +56,8 @@
   "downloads.another": "Did you mean %1? ", 
   "downloads.prompt": "Download version \"%1\"? ", 
   "downloads.custom": "Custom name (Nothing for the origin name) ", 
-  "downloads.downloading": "%1 downloading...", 
-  "downloads.finish": "Finish downloading %1! ", 
+  "downloads.downloading": "%1 ", 
+  "downloads.finish": "%1 finished! ", 
   "downloads.assets": "Assets", 
   "downloads.libraries": "Libraries", 
   "downloads.client": "Client", 
@@ -87,6 +87,8 @@
   "accounts.remove": "Remove", 
   "accounts.removePrompt": "Remove the selected account? ", 
   "accounts.current": "Current account: %1", 
+  "accounts.loading": "Logining account... ", 
+  "accounts.noMinecraft": "Sorry, you don't have Minecraft: Java Edition! Go to https://www.minecraft.net/en-us/store/minecraft-java-edition to buy! ", 
   "update.launcher": "New version of launcher released: %1! \nUpdate content: ", 
   "update.launcher.restart": "Launcher update finished, please restart the launcher! ", 
   "update.launcher.done": "Updated from %1 to %2! \nUpdate log: ", 
@@ -94,7 +96,10 @@
   "main.dialog": "Dialog", 
   "main.warn": "Warning", 
   "main.warnContent": "Do not give the file \".river_cfg.json\" to anyone! This file contains your private informations! ", 
-  "main.prev": "Entered pre-launch mode! ", 
+  "main.usage": "Usage: \n\
+1. Launch: river.py launch [Instance Name]\n\
+2. Download: river.py download [Minecraft Version] [Fabric Version] [Optifine Version] [Custom Name]\n\
+Note: Use \" for space item! ", 
   "update.build.1": ("Fixed bugs", ), 
   "update.build.2": ("Fixed legacy versions' ${user_properties} bug", ), 
   "update.build.3": ("Added Help", ), 
@@ -120,5 +125,7 @@
                     "Added auto-update", 
                     "Added auto-relogin"), 
   "update.build.12": ("Recovered and modified the downloads feature", 
-                    "Added mods management")
+                    "Added mods management"), 
+  "update.build.13": ("Changed all button's style", 
+                    "Now supported using offline")
 }
