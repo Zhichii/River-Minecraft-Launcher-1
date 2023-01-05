@@ -6,24 +6,38 @@ import subprocess
 try: 
     import requests
 except:
-    print("Downloading necessary libraries! 正在下载必要的库! ")
+    print("Downloading necessary libraries! 正在下载必要的库! 1/2")
     subprocess.getstatusoutput(sys.executable + " -m pip install requests -i https://pypi.doubanio.com/simple/")
     import requests
+try:
+    import pyglet
+except:
+    print("Downloading necessary libraries! 正在下载必要的库! 2/2")
+    subprocess.getstatusoutput(sys.executable + " -m pip install pyglet -i https://pypi.doubanio.com/simple/")
+    import pyglet
 import threading as thread
 import hashlib
 import json
 from tkinter import *
 from tkinter import ttk
 from tkinter import PhotoImage
-import ctypes
-ctypes.windll.shcore.SetProcessDpiAwareness(1)
+import shutil
+def writeLog(logger, content):
+    writeContent = "["+str(time.time())[:13]+", "+logger[0].capitalize()+logger[1:]+"] "+content[0].capitalize()+content[1:]
+    print(writeContent)
+    log.write(writeContent+"\n")
+    log.flush()
+#import river_json as rvj
 
 log = open(".river_log.txt", "w")
 webCache = {}
+helpToProtect = 0
 
-
+global messages
+messages = []
 def myMessage(level, message):
     """level: 0-low 1-normal 2-warn 3-dangerous"""
+    messages.append([level, time.time(), message])
 
 def judge(state, command):
     if (state):
@@ -31,34 +45,160 @@ def judge(state, command):
     else:
         writeLog("judge", "not True: " + str(state))
 
-root = Tk("river", "river", " River L... 这是一个彩蛋! 在这的文字会因长度不够被省略掉而隐藏! ")
-root.iconbitmap("icon.ico")
-root.geometry("2200x1140+100+100")
+pyglet.font.add_file("assets\\font.otf")
+theFont = ("Times New Roman", 10)
+
 def myButton(master, textvariable=None, text="", command=""):
-    buttonImage = PhotoImage(master=master, file=os.getcwd()+"\\assets\\control\\button.png")
-    buttonImageActive = PhotoImage(master=master, file=os.getcwd()+"\\assets\\control\\buttonActive.png")
+    buttonImage = PhotoImage(master=master, file="assets\\control\\button.png")
+    buttonImageActive = PhotoImage(master=master, file="assets\\control\\buttonActive.png")
     if (textvariable != None): 
-        x = ttk.Label(master, textvariable=textvariable, image=buttonImage, compound=CENTER, foreground="white")
+        x = ttk.Label(master, textvariable=textvariable, image=buttonImage, compound=CENTER, foreground="white", font=theFont)
     else: 
-        x = ttk.Label(master, text=text, image=buttonImage, compound=CENTER, foreground="white")
-    x.bind("<Button-1>", lambda event: judge("normal" in str(x.config("state")[4]), command))
+        x = ttk.Label(master, text=text, image=buttonImage, compound=CENTER, foreground="white", font=theFont)
+    x.bind("<Button-1>", lambda event: judge(not("disabled" in str(x.config("state")[4])), command))
     x.bind("<Enter>", lambda event: x.config(image=buttonImageActive))
     x.bind("<Leave>", lambda event: x.config(image=buttonImage))
     return x
 
 def myTab(master, textvariable=None, command=""):
-    tabImage = PhotoImage(master=master, file=os.getcwd()+"\\assets\\control\\tab.png")
-    tabImageActive = PhotoImage(master=master, file=os.getcwd()+"\\assets\\control\\tabActive.png")
-    x = ttk.Label(master, textvariable=textvariable, image=tabImage, compound=CENTER, foreground="white")
-    x.bind("<Button-1>", lambda event: judge("normal" in str(x.config("state")[4]), command))
+    tabImage = PhotoImage(master=master, file="assets\\control\\tab.png")
+    tabImageActive = PhotoImage(master=master, file="assets\\control\\tabActive.png")
+    x = ttk.Label(master, textvariable=textvariable, image=tabImage, compound=CENTER, foreground="white", font=theFont)
+    x.bind("<Button-1>", lambda event: judge(not("disabled" in str(x.config("state")[4])), command))
     x.bind("<Enter>", lambda event: x.config(image=tabImageActive))
     x.bind("<Leave>", lambda event: x.config(image=tabImage))
     return x
 
+def myTabY(master, text="", command=""):
+    tabYImage = PhotoImage(master=master, file="assets\\control\\tabY.png")
+    tabYImageActive = PhotoImage(master=master, file="assets\\control\\tabYActive.png")
+    x = ttk.Label(master, text=text, image=tabYImage, compound=CENTER, foreground="white", font=theFont)
+    x.bind("<Button-1>", lambda event: judge(not("disabled" in str(x.config("state")[4])), command))
+    x.bind("<Enter>", lambda event: x.config(image=tabYImageActive))
+    x.bind("<Leave>", lambda event: x.config(image=tabYImage))
+    return x
+
+def myPass(*kw):
+    pass
+
+class myList:
+    def update(this):
+        tmp = this.contains
+        for i in this.owned:
+            i[2].grid_forget()
+        if (this.offset < 0):
+            this.offset = 0
+        for i in range(this.offset, this.offset+10):
+            if (i >= tmp):
+                break
+            this.owned[i][2].grid()
+            if (i == this.select):
+                this.owned[i][2].config(background="#18572a")
+                this.owned[i][2].config(foreground="white")
+            else:
+                this.owned[i][2].config(background="white")
+                this.owned[i][2].config(foreground="black")
+        pre = (this.offset+10)/this.contains
+        if (pre >= 1.0): pre = 1.0
+        this.scroll(this.offset/this.contains, pre)
+    def __init__(this, master, height=100, width=50, yscrollcommand=myPass):
+        this.offset = 0
+        this.select = -1
+        this.contains = 0
+        this.master = master
+        this.enabled = 1
+        this.size = (height, width)
+        this.owned = []
+        this.scroll = yscrollcommand
+        this.frame = Frame(master, height=height, width=width, highlightbackground="black", highlightthickness=2)
+    def activate(this, item):
+        this.select = item
+        if ( (item > this.offset+10) or
+             (item < this.offset)):
+            this.yview("moveto", item)
+        this.update()
+    def add(this, text, image=None, compound=LEFT):
+        this.select = 0
+        this.contains += 1
+        if (text.count("\n") == 0):
+            pass #text += "\n"
+       #itemImage = PhotoImage(master=this.frame, file="assets\\control\\item.png")
+        x = ttk.Label(this.frame, text=text, image=image, compound=compound, width=this.size[1], font=theFont, borderwidth=5, relief=RAISED)#, highlightthickness=3, highlightcolor="black") #, image=itemImage
+        x.bind("<MouseWheel>", lambda event: this.yview("scroll", ((event.delta<0)*2-1)*5))
+        x.bind("<Button-1>", lambda event, cnt=this.contains-1: judge(this.enabled, lambda: (this.activate(cnt))))
+        x.bind("<Enter>", lambda event: judge(this.enabled, (lambda cnt=this.contains-1: x.config(background="#19a842"))), ())
+        x.bind("<Leave>", lambda event, cnt=this.contains-1: (x.config(background="white"), this.update()))
+        this.owned.append((text, image, x))
+        this.update()
+    def bind(this, key, command):
+        this.frame.bind(key, command)
+        for i in range(this.contains):
+            this.owned[i][2].bind(key, lambda event, tmp=i: (this.activate(tmp), command(event)))
+    def index(this, pass_):
+        return this.select
+    def get(this, pass_):
+        return this.owned[this.select][0]
+    def getImage(this, pass_):
+        return this.owned[this.select][1]
+    def grid(this, column=-1, row=-1):
+        if (column == -1):
+            if (row == -1):
+                this.frame.grid()
+            else:
+                this.frame.grid(row=row)
+        else:
+            if (row == -1):
+                this.frame.grid(column=column)
+            else:
+                this.frame.grid(column=column, row=row)
+    def pack(this, cnf={}, **kw):
+        this.frame.tk.call(
+              ('pack', 'configure', this.frame._w)
+              + this.frame._options(cnf, kw))
+    def config(this, state=ACTIVE):
+        this.enabled = state == ACTIVE
+        if not (this.enabled):
+            this.select = -1
+            this.update()
+    def yview(this, command, *kw):
+        if (command == "scroll"):
+            pre = this.offset + int(kw[0])
+            if (pre <= 0): pre = 0
+            if (pre > (this.contains-10)):
+                pre = this.contains - 10
+            this.offset = pre
+        if (command == "moveto"):
+            pre = this.contains - 10
+            if ( (float(kw[0])*this.contains) < (this.contains-10)):
+                pre = float(kw[0])*this.contains
+            if (pre <= 0): pre = 0
+            this.offset = int(pre)
+        this.update()
+
+"""w = Tk()
+li = myList(w)
+li.add("Release", releaseImage)
+li.add("Snapshot", snapshotImage)
+li.add("Old", oldImage)
+li.grid()
+0/0"""
+
+root = Tk("river", "river", " River L... 这是一个彩蛋! 在这的文字会因长度不够被省略掉而隐藏! ")
+root.iconbitmap("assets\\title\\icon.ico")
+root.geometry("880x540+25+25")
+releaseImage = PhotoImage(master=root, file="assets\\icon\\release.png")
+snapshotImage = PhotoImage(master=root, file="assets\\icon\\snapshot.png")
+oldImage = PhotoImage(master=root, file="assets\\icon\\old.png")
+fabricImage = PhotoImage(master=root, file="assets\\icon\\fabric.png")
+optifineImage = PhotoImage(master=root, file="assets\\icon\\optifine.png")
+onImage = PhotoImage(master=root, file="assets\\icon\\on.png")
+offImage = PhotoImage(master=root, file="assets\\icon\\off.png")
+
 true = True
 false = False
-curBuild = 13
-builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7", 8: "v0.8.0", 9: "v0.8.1", 10: "v0.9", 11: "v0.9.1", 12: "v0.10", 13: "v0.10.1"}
+null = None
+curBuild = 14
+builds = {1: "v0.1", 2: "v0.2", 3: "v0.3", 4: "v0.4", 5: "v0.5", 6: "v0.6", 7: "v0.7", 8: "v0.8.0", 9: "v0.8.1", 10: "v0.9", 11: "v0.9.1", 12: "v0.10", 13: "v0.10.1", 14: "v0.10.2"}
 
 
 def makeDir(dirName):
@@ -74,7 +214,7 @@ def sp(string, a, b):
 def switchLang(langName):
     global lang
     cfg["lang"] = langName
-    config = open(".river_cfg.json", "w")
+    config = open(".river_cfg.py", "w")
     config.write(str(cfg))
     config.close()
     targetLang = eval(open("assets\\lang\\" + langName + ".py", encoding="utf-8").read())
@@ -91,13 +231,17 @@ def switchLang(langName):
         cfg["settings"]["info"]["value"] = lang["sets.info.value"].get().replace("%1", builds[curBuild])
     root.title(lang["title.main"].get())
 
-def writeLog(logger, content):
-    writeContent = "["+str(time.time())[:13]+", "+logger[0].capitalize()+logger[1:]+"] "+content[0].capitalize()+content[1:]
-    print(writeContent)
-    log.write(writeContent+"\n")
-    log.flush()
+if (".river_cfg.json" in os.listdir()):
+    config = open(".river_cfg.json")
+    read = config.read()
+    config.close()
+    os.remove(".river_cfg.json")
+    config = open(".river_cfg.py", "w")
+    config.write(read)
+    config.close()
+    writeLog("main", "migrated from .river_cfg.json to .river_cfg.py! ")
 
-def get(url, saveIn = None, saveAs = None, hashHex = None):
+def get(url, saveIn = None, saveAs = None, hashHex = None, headers={}, data={}, params={}):
     got = None
     if (url in webCache):
         tmp = webCache[url]
@@ -121,11 +265,11 @@ def get(url, saveIn = None, saveAs = None, hashHex = None):
                 got = file.read()
     if (got is None):
         try:
-            got = requests.get(url).content
-        except:
-            writeLog("get", "failed to get: " + url)
-            got = ""
-        webCache[url] = {"time": time.time(), "content": got}
+            got = requests.get(url, headers=headers, data=data, params=params).content
+            webCache[url] = {"time": time.time(), "content": got}
+        except requests.exceptions.ConnectionError as err:
+            writeLog("get", "failed to get: " + url + "; error: " + str(err))
+            got = b""
     if not (os.path.isfile(filePath)):
         if (filePath != ""): 
             file = open(filePath, "wb")
@@ -146,7 +290,6 @@ def getPer(url, saveIn = None, saveAs = None, hashHex = None):
 
 global downloadButtonLocked
 downloadButtonLocked = 0
-helpToProtect = 1
 makeDir(".minecraft")
 makeDir(".minecraft\\versions")
 makeDir(".minecraft\\assets")
@@ -154,6 +297,10 @@ makeDir(".minecraft\\libraries")
 makeDir(".minecraft\\assets\\indexes")
 makeDir(".minecraft\\assets\\objects")
 makeDir(".minecraft\\mods")
+if (".river_tmp" in os.listdir()): 
+    os.system("del .river_tmp /s /f /q")
+else:
+    makeDir(".river_tmp")
 versions = get("https://launchermeta.mojang.com/mc/game/version_manifest.json")
 lang = {}
 defaultLang = "zh_cn"
@@ -163,17 +310,17 @@ for i in targetLang:
         lang[i] = StringVar(value=targetLang[i])
     else:
         lang[i] = targetLang[i]
-defaultCfg = {"lang": defaultLang, "version": curBuild, "latest": "", "accounts": {}, "selectedAccount": 0, "settings": {"resolutionWidth": {"value": 1618, "type": "int"}, "resolutionHeight": {"value": 1000, "type": "int"}, "startupPage": {"value": "launch", "type": "page"}, "info": {"value": lang["sets.info.value"].get().replace("%1", builds[curBuild]), "type": "static"}}, "THANKS_FOR": {"Python": "source support", "Tkinter & Ttk": "GUI support", "Minecraft":"game to launch", "PCL & HMCL":"launch bat refrence", "HlHill":"write source code"}}
+defaultCfg = {"java": 0, "lang": defaultLang, "version": curBuild, "latest": "", "accounts": {}, "selectedAccount": 0, "settings": {"resolutionWidth": {"value": 1618, "type": "int"}, "resolutionHeight": {"value": 1000, "type": "int"}, "startupPage": {"value": "launch", "type": "page"}, "info": {"value": lang["sets.info.value"].get().replace("%1", builds[curBuild]), "type": "static"}}, "THANKS_FOR": {"Python": "source support", "Tkinter & Ttk": "GUI support", "Minecraft":"game to launch", "PCL & HMCL":"launch bat refrence", "HlHill":"write source code"}}
 try:
     defaultCfg["latest"] = eval(versions)["versions"][0]["id"]
 except:
     writeLog("default config", "failed to get the latest version")
-if (not os.path.isfile(".river_cfg.json")):
-    config = open(".river_cfg.json", "w")
+if (not os.path.isfile(".river_cfg.py")):
+    config = open(".river_cfg.py", "w")
     config.write(str(defaultCfg))
     config.close()
     helpToProtect = 1
-config = open(".river_cfg.json", "r")
+config = open(".river_cfg.py", "r")
 cfg = eval(config.read())
 config.close()
 cfg["THANKS_FOR"] = defaultCfg["THANKS_FOR"]
@@ -206,9 +353,46 @@ elif (time.localtime().tm_mon == 1):
     if (time.localtime().tm_mday <= 2):
         writeLog("HlHill", "happy new year! ")
 
+def downloadJava():
+    import platform
+    sys = platform.system()
+    try:
+        if (sys == "Windows"):
+            get("https://download.java.net/openjdk/jdk8u42/ri/openjdk-8u42-b03-windows-i586-14_jul_2022.zip", saveAs="javaA.zip", saveIn=".river_tmp")
+            get("https://download.java.net/openjdk/jdk17/ri/openjdk-17+35_windows-x64_bin.zip", saveAs="javaB.zip", saveIn=".river_tmp")
+        elif ( (sys == "Linux") or
+             (sys == "Darwin")): 
+            get("https://download.java.net/openjdk/jdk8u42/ri/openjdk-8u42-b03-linux-x64-14_jul_2022.tar.gz", saveAs="javaA.zip", saveIn=".river_tmp")
+            get("https://download.java.net/openjdk/jdk17/ri/openjdk-17+35_linux-x64_bin.tar.gz", saveAs="javaB.zip", saveIn=".river_tmp")
+        else:
+            writeLog("java downloader", "unknown system: " + sys + "; downloading java of linux")
+        zipFileA = zipfile.ZipFile(".river_tmp\\javaA.zip")
+        zipFileB = zipfile.ZipFile(".river_tmp\\javaB.zip")
+        zipFileA.extractall("assets\\java")
+        zipFileB.extractall("assets\\java")
+        if ("A" in os.listdir("assets\\java")):
+            shutil.rmtree("assets\\java\\A")
+        if ("B" in os.listdir("assets\\java")):
+            shutil.rmtree("assets\\java\\B")
+        os.rename("assets\\java\\java-se-8u42-ri", "assets\\java\\A")
+        os.rename("assets\\java\\jdk-17", "assets\\java\\B")
+        pageDownloadsButton.config(text=lang["downloads.finish"].get().replace("%1", lang["downloads.java"].get()))
+    except:
+        writeLog("java downloader", "failed to download java")
+
 def launchVersion(versionId):
     if (accounts == {}):
-        print(lang["launch.instead"])
+        dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
+        dialog.iconbitmap("assets\\title\\icon.ico")
+        dialog.focus_force()
+        dialog.resizable(0, 0)
+        message = ttk.Frame(dialog, padding=30)
+        check = ttk.Frame(dialog, padding=30)
+        ttk.Label(message, text=lang["launch.account"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
         return 1
     try:
         launchButton
@@ -308,10 +492,17 @@ def launchVersion(versionId):
                 .replace("${library_directory}", cwd+".minecraft\\\\libraries")
                 )
     gameArg = []
-    if ( (not "complianceLevel" in file) or (file["complianceLevel"] == 0) ): 
+    if ("minecraftArguments" in file):
+        level = 0
+    elif ("arguments" in file):
+        level = 1
+    else:
+        writeLog("game launcher", "failed to recongnize launch type! default to type 0")
+        level = 0
+    if (level == 0): 
         gameArg = file["minecraftArguments"]
         jvmArg = ["-cp", "\""+tmp.replace("\\\\", "\\").replace("/", "\\")+"\""]
-    if ( ("complianceLevel" in file) and file["complianceLevel"] == 1): 
+    if (level == 1): 
         for i in file["arguments"]["game"]:
             if (type(i) == str):
                 gameArg.append(i)
@@ -384,7 +575,7 @@ def relogin(account):
     accounts[usrName] = {"usrType": "mojang", "usrName": usrName, "usrId": usrId, "usrSkin": usrSkin, "usrSkinId": usrSkinId, "usrCapes": usrCapes, "accessToken": accessToken, "refreshToken": refreshToken}
     cfg["accounts"] = accounts
     cfg["selectedAccount"] = selectedAccount
-    config = open(".river_cfg.json", "w") 
+    config = open(".river_cfg.py", "w") 
     config.write(str(cfg))
     config.close()
     return 0
@@ -393,6 +584,7 @@ def relogin(account):
 tabs = ttk.Frame(root, width = 40)
 launchPage = ttk.Frame(root, padding = 30)
 downloadsPage = ttk.Frame(root, padding = 30)
+modDownloadsPage = ttk.Frame(root, padding = 30)
 modsPage = ttk.Frame(root, padding = 30)
 accountsPage = ttk.Frame(root, padding = 30)
 settingsPage = ttk.Frame(root, padding = 30)
@@ -402,53 +594,26 @@ optifinePage = ttk.Frame(root, padding = 30)
 dynamicCur = ttk.Frame(root, padding = 30)
 pageCur = launchPage
 
-def updateLauncher(dialog, index, files):
-    for i in files:
-        get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/" + i, saveIn = os.path.split(i)[0])
-    get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/b" + str(list(index)[-1]) + index[list(index)[-1]]["name"] + ".py", saveAs = "river.py")
-    message = ttk.Frame(dialog, padding=30)
-    check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["update.launcher.restart"].get()).grid()
-    myButton(check, text=lang["sel.yes"].get(), command=exit).grid()
-    message.grid()
-    check.grid()
-    dialog.mainloop()
-
-def checkNew():
+def checkNew(noUpdate):
     global helpToProtect
     has = 0
     tmp = []
 
-    try: 
-        index = eval(get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/index.py"))
-        files = index.pop("files")
-        if (list(index)[-1] > curBuild):
-            tmp.append(lang["update.launcher"].get().replace("%1", index[list(index)[-1]]["name"]))
-            for i in range(curBuild+1, list(index)[-1]+1):
-                if (curBuild < i):
-                    if ((list(index)[-1] - curBuild) > 1):
-                        tmp.append(builds[i] + ": ")
-                    for j,updateContent in enumerate(index[i]["updateContent"][cfg["lang"]]):
-                        tmp.append(str(j+1) + ". " + updateContent + "! ")
-            dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-            dialog.iconbitmap("icon.ico")
-            dialog.focus_force()
-            dialog.resizable(0, 0)
-            message = ttk.Frame(dialog, padding=30)
-            check = ttk.Frame(dialog, padding=30)
-            ttk.Label(message, text=("\n".join(tmp))).grid()
-            myButton(check, text=lang["sel.yes"].get(), command=lambda: (
-                message.grid_remove(), 
-                check.grid_remove(), 
-                updateLauncher(dialog, index, files),
-                exit()
-            )).grid(column=0, row = 1)
-            myButton(check, text=lang["sel.no"].get(), command=dialog.destroy).grid(column=1, row = 1)
-            message.grid()
-            check.grid()
-            dialog.mainloop()
-    except:
-        writeLog("check new", "failed to check launcher update")
+    if not (noUpdate):
+        try:
+            index = eval(get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/index.py"))
+            files = index["dir"]
+            if (index["version"]["build"] > curBuild):
+                for i in files:
+                    if (i.endswith("\\")):
+                        makeDir(i)
+                    else:
+                        get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/assets/" + i, saveIn = "assets\\" + os.path.split(i)[0])
+                get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/latest.py", saveAs = "river.py")
+                #os.system("start " + sys.excutable + " -m river")
+                #exit()
+        except:
+            writeLog("check new", "failed to check launcher update")
 
     if (cfg["version"] != curBuild):
         helpToProtect = 1
@@ -456,7 +621,7 @@ def checkNew():
         updateFrom = cfg["version"]
         updateFromVer = builds[updateFrom]
         cfg["version"] = curBuild
-        config = open(".river_cfg.json", "w")
+        config = open(".river_cfg.py", "w")
         config.write(str(cfg))
         config.close()
         up = []
@@ -476,17 +641,17 @@ def checkNew():
             if (cfg["latest"] != ""): 
                 tmp.append(lang["update.minecraft"].get().replace("%1", eval(versions)["versions"][0]["id"]))
                 cfg["latest"] = eval(versions)["versions"][0]["id"]
-        config = open(".river_cfg.json", "w")
+        config = open(".river_cfg.py", "w")
         config.write(str(cfg))
         config.close()
         if (has == 1):
             dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-            dialog.iconbitmap("icon.ico")
+            dialog.iconbitmap("assets\\title\\icon.ico")
             dialog.focus_force()
             dialog.resizable(0, 0)
             message = ttk.Frame(dialog, padding=30)
             check = ttk.Frame(dialog, padding=30)
-            ttk.Label(message, text=("\n".join(tmp))).grid()
+            ttk.Label(message, text=("\n".join(tmp)), font=theFont).grid()
             myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
             message.grid()
             check.grid()
@@ -508,60 +673,61 @@ def processRename(src, dst):
     config.write(str(x))
     config.close()
     
-def renameVersion(version):
+def renameVersion(version, index):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["launch.renamePrompt"].get().replace("%1", version)).grid()
-    entry = ttk.Entry(message)
+    ttk.Label(message, text=lang["launch.renamePrompt"].get().replace("%1", version), font=theFont).grid()
+    entry = ttk.Entry(message, font=theFont)
     entry.grid()
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (
         processRename(version, entry.get()), 
         dialog.destroy(),
-        pageLaunch()
+        pageLaunch(index)
     )).grid(column=0, row=0)
     myButton(check, text=lang["sel.no"].get(), command=dialog.destroy).grid(column=1, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
-    pageLaunch()
+    pageLaunch(index)
 
-def removeVersion(version):
+def removeVersion(version, index):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["launch.removePrompt"].get()).grid()
-    myButton(check, text=lang["sel.yes"].get(), command=lambda: (subprocess.getstatusoutput("rmdir .minecraft\\versions\\" + version + " /S /Q"), dialog.destroy(), pageLaunch())).grid(column=0, row=0)
+    ttk.Label(message, text=lang["launch.removePrompt"].get(), font=theFont).grid()
+    myButton(check, text=lang["sel.yes"].get(), command=lambda: (subprocess.getstatusoutput("rmdir .minecraft\\versions\\" + version + " /S /Q"), dialog.destroy(), pageLaunch(index))).grid(column=0, row=0)
     myButton(check, text=lang["sel.no"].get(), command=dialog.destroy).grid(column=1, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
-    pageLaunch()
+    pageLaunch(index)
 
-def launchPopup(click, version):
+def launchPopup(click, version, index):
     popup = Menu(root, tearoff=0)
-    popup.add_command(label=lang["launch.rename"].get(), command=lambda: renameVersion(version))
-    popup.add_command(label=lang["launch.remove"].get(), command=lambda: removeVersion(version))
+    popup.add_command(label=lang["launch.rename"].get(), command=lambda: renameVersion(version, index))
+    popup.add_command(label=lang["launch.remove"].get(), command=lambda: removeVersion(version, index))
     popup.add_command(label=lang["launch.directory"].get(), command=lambda: subprocess.getstatusoutput("explorer .minecraft\\versions\\" + version))
     popup.tk_popup(click.x_root, click.y_root)
 
-def pageLaunch():
+def pageLaunch(sel=0):
     global launchButton
     global pageCur
     global dynamicCur
     pageCur.pack_forget()
     dynamicCur.pack_forget()
-    dynamic = ttk.Frame(root, padding=30)
+    dynamic = ttk.Frame(root)
+    message = ttk.Frame(dynamic)
     launch = []
     tmp = os.listdir(".minecraft\\versions")
     for i in tmp:
@@ -569,10 +735,11 @@ def pageLaunch():
             launch.append(i)
     i = 0
     if (launch == []):
-        ttk.Label(dynamic, textvariable=lang["launch.instead"]).grid(column=1, row=2)
-    else: 
-        li = Listbox(dynamic, width=50, height = 10)
-        li.bind("<Button-3>", lambda x: launchPopup(x, li.get("active").split(" (")[0]))
+        ttk.Label(dynamic, textvariable=lang["launch.instead"], font=theFont).grid(column=1, row=2)
+    else:
+        x = ttk.Scrollbar(message)
+        li = myList(message, width=50, height = 10, yscrollcommand=x.set)
+        x.config(command=li.yview)
         for i in range(len(launch)):
             versionName = launch[i]
             infoFile = open(".minecraft\\versions\\" + launch[i] + "\\" + launch[i] + ".json")
@@ -623,10 +790,25 @@ def pageLaunch():
                 infos = [origin] + infos
             infosAll = ""
             if (infos != []):
-                infosAll = " (" + ", ".join(infos) + ") "
-            li.insert(END, launch[i]+infosAll)
-        li.grid()
-        launchButton = myButton(dynamic, textvariable=lang["do.launch"], command=lambda: thread._start_new_thread(launchVersion, (li.get("active").split(" (")[0], )))
+                infosAll = ", ".join(infos)
+            img = oldImage
+            versionType = lang["launch.type.old"].get()
+            if ("type" in info):
+                if (info["type"] == "release"):
+                    img = releaseImage
+                    versionType = lang["launch.type.release"].get()
+                if (info["type"] == "snapshot"):
+                    img = snapshotImage
+                    versionType = lang["launch.type.snapshot"].get()
+            li.add(launch[i]+"\n    "+versionType+infosAll, img)
+       #li.offset = 5
+        li.activate(sel)
+        li.update()
+        li.bind("<Button-3>", lambda x: launchPopup(x, li.get("active").splitlines()[0], li.index("active")))
+        x.pack(side=RIGHT, fill=Y)
+        li.pack(side=LEFT)
+        launchButton = myButton(dynamic, textvariable=lang["do.launch"], command=lambda: thread._start_new_thread(launchVersion, (li.get("active").splitlines()[0], )))
+        message.grid()
         launchButton.grid()
     launchPage.pack()
     dynamic.pack()
@@ -637,54 +819,85 @@ global downloadConfig
 downloadConfig = {"minecraft": "", "minecraft.id": -1, "fabric": "", "optifine": ""}
 def editMinecraft(): 
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
-    minecraft = get("https://launchermeta.mojang.com/mc/game/version_manifest.json")
-    minecraft = eval(minecraft)["versions"]
+    releaseOutImage = PhotoImage(master=dialog, file="assets\\icon\\release.png")
+    snapshotOutImage = PhotoImage(master=dialog, file="assets\\icon\\snapshot.png")
+    oldOutImage = PhotoImage(master=dialog, file="assets\\icon\\old.png")
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
+    minecraft = get("https://launchermeta.mojang.com/mc/game/version_manifest.json")
+    if (minecraft == ""): 
+        ttk.Label(message, text=lang["main.noWifi"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
+        return 0
+    minecraft = eval(minecraft)["versions"]
 
     x = ttk.Scrollbar(message)
     x.pack(side=RIGHT, fill=Y)
-    li = Listbox(message, width=50, height = 10, yscrollcommand=x.set)
-    ttk.Label(message, text=lang["mod.select"].get()).pack()
+    li = myList(message, width=50, height = 10, yscrollcommand=x.set)
+    ttk.Label(message, text=lang["mod.select"].get(), font=theFont).pack()
     for i in minecraft:
-        li.insert(END, i["id"])
+        img = oldOutImage
+        if (i["type"] == "release"):
+            img = releaseOutImage
+        if (i["type"] == "snapshot"):
+            img = snapshotOutImage
+        theTime = i["releaseTime"].replace("T", ".").replace("+00:00", "").replace("-", ".").replace(":", ".").split(".")
+        tl = []
+        for j in range(6):
+            tl.append(int(theTime[j]))
+        releaseTime = time.mktime((tl[0], tl[1], tl[2], tl[3], tl[4], tl[5], 0, 0, 0)) - time.timezone
+        RT = time.localtime(releaseTime)
+        info = (lang["downloads.date"].get().replace("%1", str(RT.tm_year)).replace("%2", str(RT.tm_mon).zfill(2)).replace("%3", str(RT.tm_mday).zfill(2)).replace("%4", str(RT.tm_hour).zfill(2)).replace("%5", str(RT.tm_min).zfill(2)).replace("%6", str(RT.tm_sec).zfill(2)))
+        li.add(i["id"] + "\n    " + info, image=img)
     li.pack(side=LEFT, fill=BOTH)
     x.config(command=li.yview)
     
     global editMinecraftLi
     editMinecraftLi = li
     
-    myButton(check, text=lang["sel.yes"].get(), command=lambda: (exec("global downloadConfig; downloadConfig = {\"minecraft\": editMinecraftLi.get(ACTIVE), \"minecraft.id\": editMinecraftLi.index(ACTIVE), \"fabric\": \"\", \"optifine\": \"\"}"), dialog.destroy(), pageDownloads())).grid(column=0, row=0)
+    myButton(check, text=lang["sel.yes"].get(), command=lambda: (exec("global downloadConfig; downloadConfig = {\"minecraft\": editMinecraftLi.get(ACTIVE).splitlines()[0], \"minecraft.id\": editMinecraftLi.index(ACTIVE), \"fabric\": \"\", \"optifine\": \"\"}"), dialog.destroy(), pageDownloads())).grid(column=0, row=0)
     if (downloadConfig["minecraft"] != ""):
         myButton(check, text=lang["mod.clear"].get(), command=lambda: (exec("global downloadConfig; downloadConfig = {\"minecraft\": \"\", \"minecraft.id\": -1, \"fabric\": \"\", \"optifine\": \"\"}"), pageDownloads(), dialog.destroy())).grid(column=1, row=0)
     myButton(check, text=lang["sel.cancel"].get(), command=dialog.destroy).grid(column=2, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
 
 def editFabric(version = ""):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
+    fabricOutImage = PhotoImage(master=dialog, file="assets\\icon\\fabric.png")
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
     if (version == ""):
-        ttk.Label(message, text=lang["mod.instead"].get()).grid()
+        ttk.Label(message, text=lang["mod.instead"].get(), font=theFont).grid()
         myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
         message.grid()
         check.grid()
         dialog.mainloop()
         return 0
 
-    fabric = eval(get("https://meta.fabricmc.net/v2/versions/loader/" + version))
+    try:
+        fabric = eval(get("https://meta.fabricmc.net/v2/versions/loader/" + version))
+    except:
+        ttk.Label(message, text=lang["main.noWifi"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
+        return 0
     if (fabric == []):
-        ttk.Label(message, text=lang["mod.noAvalibleMessage"].get().replace("%1", version)).grid()
+        ttk.Label(message, text=lang["mod.noAvalibleMessage"].get().replace("%1", version), font=theFont).grid()
         myButton(check, text=lang["sel.yes"].get(), command=lambda: (dialog.destroy())).grid()
         message.grid()
         check.grid()
@@ -692,10 +905,10 @@ def editFabric(version = ""):
         return 0
     x = ttk.Scrollbar(message)
     x.pack(side=RIGHT, fill="y")
-    li = Listbox(message, width=50, height = 10, yscrollcommand=x.set)
-    ttk.Label(message, text=lang["mod.select"].get()).pack()
+    li = myList(message, width=50, height = 10, yscrollcommand=x.set)
+    ttk.Label(message, text=lang["mod.select"].get(), font=theFont).pack()
     for i in fabric:
-        li.insert(END, i["loader"]["version"])
+        li.add(i["loader"]["version"], image=fabricOutImage)
     li.pack(side=LEFT, fill=BOTH)
     x.config(command=li.yview)
     global editFabricLi
@@ -707,7 +920,7 @@ def editFabric(version = ""):
     myButton(check, text=lang["sel.cancel"].get(), command=dialog.destroy).grid(column=2, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     dialog.mainloop()
@@ -762,13 +975,14 @@ def setOptifine(wrappers, selectedWrapper):
 
 def editOptifine(version = ""): 
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
+    optifineOutImage = PhotoImage(master=dialog, file="assets\\icon\\optifine.png")
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
     if (version == ""):
-        ttk.Label(message, text=lang["mod.instead"].get()).grid()
+        ttk.Label(message, text=lang["mod.instead"].get(), font=theFont).grid()
         myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
         message.grid()
         check.grid()
@@ -776,6 +990,13 @@ def editOptifine(version = ""):
         return 0
     
     x = get("https://optifine.net/downloads").splitlines()
+    if (x == []):
+        ttk.Label(message, text=lang["main.noWifi"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
+        return 0
     allOpti = []
     optifine = []
     curTmp = ["", 0, 0, 0]
@@ -799,7 +1020,7 @@ def editOptifine(version = ""):
         if (i[0] == version):
             optifine.append(i)
     if (optifine == []):
-        ttk.Label(message, text=lang["mod.noAvalibleMessage"].get().replace("%1", version)).grid()
+        ttk.Label(message, text=lang["mod.noAvalibleMessage"].get().replace("%1", version), font=theFont).grid()
         myButton(check, text=lang["sel.yes"].get(), command=lambda: (dialog.destroy())).grid()
         message.grid()
         check.grid()
@@ -807,11 +1028,11 @@ def editOptifine(version = ""):
         return 0
     x = ttk.Scrollbar(message)
     x.pack(side=RIGHT, fill="y")
-    li = Listbox(message, width=50, height = 10, yscrollcommand=x.set)
-    ttk.Label(message, text=lang["mod.select"].get()).pack()
-    writeLog("optifine downloader", "allOpti: " + str(allOpti) + "; optifine: " + str(optifine))
+    li = myList(message, width=50, height = 10, yscrollcommand=x.set)
+    ttk.Label(message, text=lang["mod.select"].get(), font=theFont).pack()
+    writeLog("optifine downloader", "allOpti: " + str(allOpti) + "; Optifine: " + str(optifine))
     for i in optifine:
-        li.insert(END, i[1])
+        li.add(i[1], image=optifineOutImage)
     li.pack(side=LEFT, fill=BOTH)
     x.config(command=li.yview)
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (setOptifine(optifine, li.index(ACTIVE)), dialog.destroy())).grid(column=0, row=0)
@@ -830,6 +1051,8 @@ def editDownload(index):
         editOptifine(downloadConfig["minecraft"])
 
 def startDownload(customName):
+    global downloadButtonLocked
+    downloadButtonLocked = 1
     try:
         pageDownloads()
         flag = 1
@@ -837,22 +1060,34 @@ def startDownload(customName):
         flag = 0
     if (downloadConfig["minecraft"] == ""):
         dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-        dialog.iconbitmap("icon.ico")
+        dialog.iconbitmap("assets\\title\\icon.ico")
         dialog.focus_force()
         dialog.resizable(0, 0)
         message = ttk.Frame(dialog, padding=30)
         check = ttk.Frame(dialog, padding=30)
-        ttk.Label(message, text=lang["mod.instead"].get()).grid()
+        ttk.Label(message, text=lang["mod.instead"].get(), font=theFont).grid()
         myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
         message.grid()
         check.grid()
         dialog.mainloop()
         return 0
     global per
-    global downloadButtonLocked
-    downloadButtonLocked = 1
     selectedDownload = downloadConfig["minecraft.id"]
-    downloads = eval(get("https://launchermeta.mojang.com/mc/game/version_manifest.json"))["versions"]
+    try: 
+        downloads = eval(get("https://launchermeta.mojang.com/mc/game/version_manifest.json"))["versions"]
+    except:
+        dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
+        dialog.iconbitmap("assets\\title\\icon.ico")
+        dialog.focus_force()
+        dialog.resizable(0, 0)
+        message = ttk.Frame(dialog, padding=30)
+        check = ttk.Frame(dialog, padding=30)
+        ttk.Label(message, text=lang["main.noWifi"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
+        return 0
     originName = downloadConfig["minecraft"]
     if (customName == ""):
         customName = originName
@@ -860,6 +1095,7 @@ def startDownload(customName):
     versionInfo = eval(get(downloads[selectedDownload]["url"], saveIn = (".minecraft\\versions\\" + customName), saveAs = (customName + ".json")))
     versionInfo["id"] = customName
     versionInfo["river_origin"] = originName
+    forge = 0
     if (downloadConfig["fabric"] != ""):
         fabric = eval(requests.get("https://meta.fabricmc.net/v2/versions/loader/" + originName + "/" + downloadConfig["fabric"] + "/profile/json").content)
         versionInfo["time"] = fabric["time"]
@@ -993,8 +1229,15 @@ def startDownload(customName):
     if (flag == 1):
         pageDownloads()
 
-if (len(sys.argv) != 1):
-    arg = sys.argv[1:]
+arg = sys.argv
+if ("--noJava" in arg):
+    noJava = 1
+    arg.pop(arg.index("--noJava"))
+if ("--noUpdate" in arg):
+    noUpdate = 1
+    arg.pop(arg.index("--noUpdate"))
+arg = arg[1:]
+if (len(arg) > 0):
     for i in range(len(arg)):
         arg[i] = arg[i].replace("\"", "")
     for i in range(3):
@@ -1029,55 +1272,58 @@ def pageDownloads():
     global dynamicCur
     pageCur.pack_forget()
     dynamicCur.pack_forget()
-    dynamic = ttk.Frame(root, padding=30)
+    dynamic = ttk.Frame(root)
 
-    message = ttk.Frame(dynamic)
-    listArea = ttk.Frame(dynamic)
-    buttonArea = ttk.Frame(dynamic)
-    entry = ttk.Entry(message)
-    liK = Listbox(listArea, width=20, height = 10)
-    liV = Listbox(listArea, width=30, height = 10, disabledforeground="black")
+    downloadTabs = ttk.Frame(dynamic)
+    downloadContent = ttk.Frame(dynamic)
+    myTabY(downloadTabs, text=lang["do.downloads.game"].get(), command=pageDownloads).grid(column=0, row=0)
+    myTabY(downloadTabs, text=lang["do.downloads.mods"].get(), command=pageModDownloads).grid(column=1, row=0)
+    
+    message = ttk.Frame(downloadContent)
+    listArea = ttk.Frame(downloadContent)
+    buttonArea = ttk.Frame(downloadContent)
+    entry = ttk.Entry(message, font=theFont)
+    li = myList(listArea, width=40, height = 10)
     if (downloadConfig["minecraft"] != ""): 
         fabric = eval(get("https://meta.fabricmc.net/v2/versions/loader/" + downloadConfig["minecraft"]))
     else:
         fabric = []
     # Minecraft
     i = "minecraft"
-    liK.insert(END, lang["mod."+i].get())
+    pre = lang["mod."+i].get() + "\t    "
     if (downloadConfig[i] == ""): 
-        liV.insert(END, lang["mod.none"].get())
+        pre += lang["mod.none"].get()
     else: 
-        liV.insert(END, downloadConfig[i])
+        pre += downloadConfig[i]
+    li.add(pre, image=releaseImage)
     # Fabric
     i = "fabric"
-    liK.insert(END, lang["mod."+i].get())
+    pre = lang["mod."+i].get() + "\t    "
     if (downloadConfig["minecraft"] == ""): 
-        liV.insert(END, lang["mod.none"].get())
+        pre += lang["mod.none"].get()
     elif (fabric == []):
-        liV.insert(END, lang["mod.noAvalible"].get())
+        pre += lang["mod.noAvalible"].get()
     elif (downloadConfig[i] == ""): 
-        liV.insert(END, lang["mod.none"].get())
+        pre += lang["mod.none"].get()
     else:
-        liV.insert(END, downloadConfig[i])
+        pre += downloadConfig[i]
+    li.add(pre, image=fabricImage)
     # Optifine
     i = "optifine"
-    liK.insert(END, lang["mod."+i].get())
+    pre = lang["mod."+i].get() + "\t    "
     if (downloadConfig["minecraft"] == ""): 
-        liV.insert(END, lang["mod.none"].get())
-    #elif (downloadConfig["fabric"] != ""):
-        #liV.insert(END, lang["mod.notCompatible"].get().replace("%1", lang["mod.fabric"].get()))
+        pre += lang["mod.none"].get()
     elif (downloadConfig[i] == ""): 
-        liV.insert(END, lang["mod.none"].get())
+        pre += lang["mod.none"].get()
     else:
-        liV.insert(END, downloadConfig[i][0])
+        pre += downloadConfig[i][0]
+    li.add(pre, image=optifineImage)
 
-    liK.grid(column=0, row=0)
-    liV.config(state=DISABLED)
-    liV.grid(column=1, row=0)
-    ttk.Label(message, text=lang["downloads.custom"].get()).grid()
+    li.grid(column=0, row=0)
+    ttk.Label(message, text=lang["downloads.custom"].get(), font=theFont).grid()
     entry.grid()
 
-    pageDownloadsButton2 = myButton(buttonArea, text=lang["do.downloads.edit"].get(), command=lambda: editDownload(liK.index("active")))
+    pageDownloadsButton2 = myButton(buttonArea, text=lang["do.downloads.edit"].get(), command=lambda: editDownload(li.index("active")))
     pageDownloadsButton2.grid(column=0, row=0)
     global pageDownloadsButton
     pageDownloadsButton = myButton(buttonArea, text=lang["do.downloads"].get(), command=lambda: thread._start_new_thread(startDownload, (entry.get(), )))
@@ -1088,18 +1334,23 @@ def pageDownloads():
 
     col_count, row_count = buttonArea.grid_size()
     for col in range(col_count):
-        buttonArea.grid_columnconfigure(col, pad=30)
+        buttonArea.grid_columnconfigure(col, pad=10)
 
     listArea.grid()
     message.grid()
     buttonArea.grid()
+    downloadTabs.pack()
+    ttk.Separator(dynamic, orient=HORIZONTAL).pack(fill=X)
+    ttk.Label(dynamic, text=" "*1000, font=theFont).pack()
+    downloadContent.pack()
     downloadsPage.pack()
     dynamic.pack()
     pageCur = downloadsPage
     dynamicCur = dynamic
 
-def changeMod(name, index):
-    if (name.endswith(lang["mods.disabled"].get())):
+def changeMod(index):
+    oldName = os.listdir(".minecraft\\mods")
+    if not (enabled):
         disabled = 1
         oldName = name.replace(lang["mods.disabled"].get(), ".jar.disabled")
         name = name.replace(lang["mods.disabled"].get(), ".jar")
@@ -1113,24 +1364,9 @@ def changeMod(name, index):
 def changeModAll(mode, index):
     mods = os.listdir(".minecraft\\mods")
     for i in mods:
-        name = i
-        disabled = 0
-        if (name.endswith(".disabled")):
-            disabled = 1
-        name = ".".join(name.replace(".disabled", "").split(".")[:-1])
-        if (disabled):
-            name += lang["mods.disabled"].get()
-            
-        if (name.endswith(lang["mods.disabled"].get())):
-            disabled = 1
-        else:
-            disabled = 0
-        if (mode == 0):
-            if (disabled == 1):
-                changeMod(name, index)
-        if (mode == 1):
-            if (disabled == 0):
-                changeMod(name, index)
+        name = i#.replace(".jar", "")
+        writeLog("change mod all", "name: " + name)
+        changeMod(name.replace(".disabled", ""), index, ".disabled" in name)
 
 def processRemoveMod(name):
     if (name.endswith(lang["mods.disabled"].get())):
@@ -1144,12 +1380,12 @@ def processRemoveMod(name):
 
 def removeMod(name):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["mods.removePrompt"].get()).grid()
+    ttk.Label(message, text=lang["mods.removePrompt"].get(), font=theFont).grid()
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (
         processRemoveMod(name), 
         dialog.destroy(),
@@ -1158,28 +1394,132 @@ def removeMod(name):
     myButton(check, text=lang["sel.no"].get(), command=dialog.destroy).grid(column=1, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     pageMods()
 
-def modsPopup(click, mod):
+def modsPopup(click, mod, enabled):
     popup = Menu(root, tearoff=0)
-    popup.add_command(label=lang["mods.remove"].get(), command=lambda: removeMod(mod))
+    popup.add_command(label=lang["mods.remove"].get(), command=lambda: removeMod(mod, enabled))
     popup.add_command(label=lang["mods.directory"].get(), command=lambda: subprocess.getstatusoutput("explorer .minecraft\\mods"))
     popup.tk_popup(click.x_root, click.y_root) 
+
+cursef = {"Content-Type": "application/json", "Accept": "application/json", "x-api-key": "$2a$10$ZaB581JIZAliSu7.eL8C5uVPx03yRCgl48hPz.DW1jdESMjlUMFiS"}
+
+def downloadMod(modLink, dialog):
+    get(modLink, saveIn=".minecraft\\mods")
+    dialog.destroy()
+
+def pageModVersion(modId):
+    dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
+    dialog.iconbitmap("assets\\title\\icon.ico")
+    dialog.focus_force()
+    dialog.resizable(0, 0)
+    message = ttk.Frame(dialog, padding=30)
+    check = ttk.Frame(dialog, padding=30)
+    r = get("https://api.curseforge.com/v1/mods/"+str(modId)+"/files", headers=cursef)
+    if (r == ""): 
+        ttk.Label(message, text=lang["main.noWifi"].get(), font=theFont).grid()
+        myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
+        message.grid()
+        check.grid()
+        dialog.mainloop()
+        return 0
+    x = eval(r)
+    r = get("https://api.curseforge.com/v1/mods/"+str(modId), headers=cursef)
+    y = eval(r)
+    del r
+    name = y["data"]["name"]
+    scroll = ttk.Scrollbar(message)
+    scroll.pack(side=RIGHT, fill=Y)
+    li = myList(message, yscrollcommand=scroll.set)
+    scroll.config(command=li.yview)
+    for i in x["data"]:
+        li.add(i["displayName"] + "\n\t" + ", ".join(i["gameVersions"]))
+    li.pack(side=RIGHT)
+    myButton(check, text=lang["sel.yes"].get(), command=lambda: (message.grid_forget(), check.grid_forget(), downloadMod(x["data"][li.index(ACTIVE)]["downloadUrl"], dialog))).grid(column=0, row=0)
+    myButton(check, text=lang["sel.cancel"].get(), command=dialog.destroy).grid(column=1, row=0)
+    col_count, row_count = check.grid_size()
+    for col in range(col_count):
+        check.grid_columnconfigure(col, pad=10)
+    message.grid()
+    check.grid()
+
+def pageModDownloads(arg="sortField=Popularity&sortOrder=desc"):
+    flag = 1
+    
+    global pageCur
+    global dynamicCur
+    pageCur.pack_forget()
+    dynamicCur.pack_forget()
+    dynamic = ttk.Frame(root)
+    downloadTabs = ttk.Frame(dynamic)
+    downloadContent = ttk.Frame(dynamic)
+    myTabY(downloadTabs, text=lang["do.downloads.game"].get(), command=pageDownloads).grid(column=0, row=0)
+    myTabY(downloadTabs, text=lang["do.downloads.mods"].get(), command=pageModDownloads).grid(column=1, row=0)
+    message = ttk.Frame(downloadContent)
+    listArea = ttk.Frame(downloadContent)
+    
+    r = get("https://api.curseforge.com/v1/mods/search?gameId=432&"+arg, headers=cursef)
+    x = eval(r)
+
+    buttonArea = ttk.Frame(downloadContent)
+    entry = ttk.Entry(message, font=theFont)
+    entry.grid()
+
+    myButton(buttonArea, text=lang["do.downloads"].get(), command=lambda: pageModVersion(x["data"][li.index(ACTIVE)]["id"])).grid(column=0, row=0)
+    myButton(buttonArea, text=lang["do.downloads.search"].get(), command=lambda: pageModDownloads("searchFilter=\""+entry.get()+"\"")).grid(column=1, row=0)
+    myButton(buttonArea, text=lang["do.downloads.fabricApi"].get(), command=lambda: pageModVersion(306612)).grid(column=2, row=0)
+    col_count, row_count = buttonArea.grid_size()
+    for col in range(col_count):
+        buttonArea.grid_columnconfigure(col, pad=10)
+
+    if (x["data"] != []):
+        scroll = ttk.Scrollbar(listArea)
+        scroll.pack(side=RIGHT, fill=Y)
+        li = myList(listArea, width=40, height = 10, yscrollcommand=scroll.set)
+        scroll.config(command=li.yview)
+        for i in x["data"]:
+            pre = i["name"] + "\n\t" + i["summary"]
+            li.add(pre)
+        li.pack(side=LEFT, fill=Y)
+    else:
+        try:
+            writeLog("mod downloads page", arg.replace("searchFilter=", ""))
+            x = int(arg.replace("searchFilter=", ""))
+            r = get("https://api.curseforge.com/v1/mods/"+str(x), headers=cursef)
+            x = eval(r)
+            scroll = ttk.Scrollbar(listArea)
+            scroll.pack(side=RIGHT, fill=Y)
+            li = myList(listArea, width=40, height = 10, yscrollcommand=scroll.set)
+            pre = x["data"]["name"] + "\n    " + x["data"]["summary"]
+            li.add(pre)
+            li.pack(side=LEFT)
+        except:
+            ttk.Label(listArea, text=lang["modDownloads.nothing"].get(), font=theFont).grid()
+    listArea.grid()
+    message.grid()
+    buttonArea.grid()
+    modDownloadsPage.pack()
+    downloadTabs.pack()
+    ttk.Separator(dynamic, orient=HORIZONTAL).pack(fill=X)
+    ttk.Label(dynamic, text=" "*1000, font=theFont).pack()
+    downloadContent.pack()
+    dynamic.pack()
+    pageCur = modDownloadsPage
+    dynamicCur = dynamic
 
 def pageMods(sel=None): 
     global pageCur
     global dynamicCur
     pageCur.pack_forget()
     dynamicCur.pack_forget()
-    dynamic = ttk.Frame(root, padding=30)
+    dynamic = ttk.Frame(root)
     
     message = ttk.Frame(dynamic)
     check = ttk.Frame(dynamic)
-    li = Listbox(message, width=50, height=10)
-    li.bind("<Button-3>", lambda x: modsPopup(x, li.get("active")))
+    li = myList(message, width=50, height=10)
     if ( ("mods" in os.listdir(".minecraft\\")) and (os.listdir(".minecraft\\mods") != []) ): 
         for i in os.listdir(".minecraft\\mods"):
             name = i
@@ -1187,21 +1527,31 @@ def pageMods(sel=None):
             if (name.endswith(".disabled")):
                 disabled = 1
             name = ".".join(name.replace(".disabled", "").split(".")[:-1])
+            img = onImage
             if (disabled):
-                name += lang["mods.disabled"].get()
-            li.insert(END, name)
+                img = offImage
+            zipFile = zipfile.ZipFile(".minecraft\\mods\\"+i)
+            info = ""
+            try:
+                x = zipFile.read("fabric.mod.json")
+                x = eval(x)
+                info = + "\n\t" + x["version"] + "; " + x["description"]
+                print(info)
+            except:
+                pass
+            li.add(name+info, image=img)
         if not (sel is None):
             li.activate(sel)
-            li.select_set(sel)
+        li.bind("<Button-3>", lambda x: modsPopup(x, li.get("active"), li.getImage(ACTIVE)==onImage))
         li.grid()
     else:
-        ttk.Label(message, text=lang["mods.instead"].get()).grid()
-    myButton(check, text=lang["do.mods"].get(), command=lambda: changeMod(li.get(ACTIVE), li.index(ACTIVE))).grid(column=1, row=0)
-    myButton(check, text=lang["do.mods.all.on"].get(), command=lambda: changeModAll(0, li.index(ACTIVE))).grid(column=0, row=0)
-    myButton(check, text=lang["do.mods.all.off"].get(), command=lambda: changeModAll(1, li.index(ACTIVE))).grid(column=2, row=0)
+        ttk.Label(message, text=lang["mods.instead"].get(), font=theFont).grid()
+    myButton(check, text=lang["do.mods"].get(), command=lambda: changeMod(li.index(ACTIVE))).grid(column=1, row=0)
+    myButton(check, text=lang["do.mods.all.on"].get(), command=lambda: changeModAll(0)).grid(column=0, row=0)
+    myButton(check, text=lang["do.mods.all.off"].get(), command=lambda: changeModAll(1)).grid(column=2, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     modsPage.pack()
@@ -1211,17 +1561,17 @@ def pageMods(sel=None):
 
 def removeAccount(account):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["accounts.removePrompt"].get()).grid()
+    ttk.Label(message, text=lang["accounts.removePrompt"].get(), font=theFont).grid()
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (
         accounts.pop(account),
         exec("global cfg;cfg[\"accounts\"] = accounts"), 
         exec("global cfg;cfg[\"selectedAccount\"] = selectedAccount"), 
-        exec("global config;config = open(\".river_cfg.json\", \"w\")"), 
+        exec("global config;config = open(\".river_cfg.py\", \"w\")"), 
         config.write(str(cfg)), 
         config.close(), 
         dialog.destroy(),
@@ -1230,7 +1580,7 @@ def removeAccount(account):
     myButton(check, text=lang["sel.no"].get(), command=dialog.destroy).grid(column=1, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     pageAccounts()
@@ -1243,15 +1593,15 @@ def accountsPopup(click, account):
 def processMojang(code, dialog):
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["accounts.loading"].get()).grid()
+    ttk.Label(message, text=lang["accounts.loading"].get(), font=theFont).grid()
     message.grid()
     t = eval(requests.get("https://login.live.com/oauth20_token.srf?client_id=00000000402b5328&client_secret=client_secret&code=<CODE>&grant_type=authorization_code&redirect_uri=https%3a%2f%2flogin.live.com%2foauth20_desktop.srf".replace("<CODE>", code)).content)
     refreshToken = t["refresh_token"]
     t = eval(requests.post("https://user.auth.xboxlive.com/user/authenticate", json={"Properties":{"AuthMethod":"RPS", "SiteName":"user.auth.xboxlive.com", "RpsTicket":("d="+t["access_token"])}, "RelyingParty":"http://auth.xboxlive.com", "TokenType":"JWT"}).content)
     t = eval(requests.post("https://xsts.auth.xboxlive.com/xsts/authorize", json={"Properties":{"SandboxId":"RETAIL", "UserTokens":[t["Token"]]}, "RelyingParty":"rp://api.minecraftservices.com/", "TokenType":"JWT"}).content)
     t = eval(requests.post("https://api.minecraftservices.com/authentication/login_with_xbox", json={"identityToken":("XBL3.0 x="+t["DisplayClaims"]["xui"][0]["uhs"]+";"+t["Token"])}).content)
-    x = requests.get("https://api.minecraftservices.com/entitlements/mcstore", headers={"Authorization":"Bearer "+t["access_token"]}).content
-    if (x != b""):
+    x = requests.get("https://api.minecraftservices.com/entitlements/mcstore", headers={"Authorization":"Bearer "+t["access_token"]})
+    if (x.content != b""):
         x = x.json()
         flag = 0
         for i in x["items"]:
@@ -1261,7 +1611,7 @@ def processMojang(code, dialog):
             message.grid_forget()
             message = ttk.Frame(dialog, padding=30)
             check = ttk.Frame(dialog, padding=30)
-            ttk.Label(message, text=lang["accounts.noMinecraft"].get()).grid()
+            ttk.Label(message, text=lang["accounts.noMinecraft"].get(), font=theFont).grid()
             dialog.mainloop()
             return 0
     profile = eval(requests.get("https://api.minecraftservices.com/minecraft/profile", headers={"Authorization":"Bearer "+t["access_token"]}).content)
@@ -1274,23 +1624,23 @@ def processMojang(code, dialog):
     accounts[usrName] = {"usrType": "mojang", "usrName": usrName, "usrId": usrId, "usrSkin": usrSkin, "usrSkinId": usrSkinId, "usrCapes": usrCapes, "accessToken": accessToken, "refreshToken": refreshToken}
     cfg["accounts"] = accounts
     cfg["selectedAccount"] = selectedAccount
-    config = open(".river_cfg.json", "w") 
+    config = open(".river_cfg.py", "w") 
     config.write(str(cfg))
     config.close()
         
 def createMojangAccount(dialog):
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["accounts.prompt"].get()).grid()
+    ttk.Label(message, text=lang["accounts.prompt"].get(), font=theFont).grid()
     global entry
-    entry = ttk.Entry(message)
+    entry = ttk.Entry(message, font=theFont)
     entry.grid()
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (exec("global code;code = entry.get().replace(\"https://login.live.com/oauth20_desktop.srf?code=\", \"\").replace(\"&lc=\", \"\")[:-4]"), message.grid_forget(), check.grid_forget(), processMojang(code, dialog), dialog.destroy(), pageAccounts())).grid(column=0, row=1)
     myButton(check, text=lang["sel.cancel"].get(), command=lambda: (dialog.destroy(), pageAccounts())).grid(column=1, row=1)
     subprocess.getstatusoutput("explorer \"https://login.live.com/oauth20_authorize.srf?client_id=00000000402b5328&response_type=code&scope=XboxLive.signin%20offline_access&redirect_uri=https%3a%2f%2flogin.live.com%2foauth20_desktop.srf\"")
@@ -1306,40 +1656,40 @@ def processLegacy(usrName):
     accounts[usrName] = {"usrType": "legacy", "usrName": usrName, "usrId": usrId, "usrSkin": usrSkin, "usrSkinId": usrSkinId, "usrCapes": usrCapes, "accessToken": accessToken}
     cfg["accounts"] = accounts
     cfg["selectedAccount"] = selectedAccount
-    config = open(".river_cfg.json", "w") 
+    config = open(".river_cfg.py", "w") 
     config.write(str(cfg))
     config.close()
     
 def createLegacyAccount(dialog):
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["accounts.name"].get()).grid()
+    ttk.Label(message, text=lang["accounts.name"].get(), font=theFont).grid()
     global entry
-    entry = ttk.Entry(message)
+    entry = ttk.Entry(message, font=theFont)
     entry.grid()
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (processLegacy(entry.get()), dialog.destroy(), pageAccounts())).grid(column=0, row=1)
     myButton(check, text=lang["sel.cancel"].get(), command=lambda: (dialog.destroy(), pageAccounts())).grid(column=1, row=1)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
 
 def createAccount():
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["accounts.type"].get()).grid()
+    ttk.Label(message, text=lang["accounts.type"].get(), font=theFont).grid()
     sel = -1
     myButton(check, text=lang["accounts.type.mojang"].get(), command=lambda: (exec("global sel;sel=0"), message.grid_remove(), check.grid_remove(), createMojangAccount(dialog))).grid(column=1, row=0)
     myButton(check, text=lang["accounts.type.legacy"].get(), command=lambda: (exec("global sel;sel=1"), message.grid_remove(), check.grid_remove(), createLegacyAccount(dialog))).grid(column=2, row=0)
     myButton(check, text=lang["sel.cancel"].get(), command=lambda: (exec("global sel;sel=2"), dialog.destroy())).grid(column=3, row=0)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     pageAccounts()
@@ -1351,73 +1701,83 @@ def pageAccounts():
     dynamicCur.pack_forget()
     dynamic = ttk.Frame(root)
     buttonArea = ttk.Frame(dynamic)
-    if (accounts == {}): ttk.Label(dynamic, textvariable=lang["accounts.instead"]).grid()
+    if (accounts == {}): ttk.Label(dynamic, textvariable=lang["accounts.instead"], font=theFont).grid()
     else:
-        li = Listbox(dynamic, width=50, height = 10)
-        li.bind("<Button-3>", lambda x: accountsPopup(x, li.get("active").split(" (")[0]))
+        li = myList(dynamic, width=50, height = 10)
         for i in range(len(accounts.keys())):
             j = accounts[list(accounts)[i]]
             name = j["usrName"]
             info = lang["accounts.info"].get().replace("%1", lang["accounts.type."+j["usrType"]].get()).replace("%2", j["usrId"])
-            li.insert(END, name + " (" + info + ") ")
+            li.add(name + " (" + info + ") ")
+        li.bind("<Button-3>", lambda x: accountsPopup(x, li.get("active").split(" (")[0]))
+        li.activate(selectedAccount)
         li.grid()
-        ttk.Label(dynamic, text=lang["accounts.current"].get().replace("%1", list(accounts)[selectedAccount])).grid()
         myButton(buttonArea, textvariable=lang["do.accounts"], command=lambda: (exec("global selectedAccount; selectedAccount = "+str(li.index("active"))), pageAccounts())).grid(column=0)
     myButton(buttonArea, textvariable=lang["do.accounts.new"], command=lambda: (createAccount(), pageAccounts())).grid(column=1, row=0)
     col_count, row_count = buttonArea.grid_size()
     for col in range(col_count):
-        buttonArea.grid_columnconfigure(col, pad=30)
+        buttonArea.grid_columnconfigure(col, pad=10)
     accountsPage.pack()
     buttonArea.grid()
     dynamic.pack()
     pageCur = accountsPage
     dynamicCur = dynamic
 
+def setSettings(key, val, dialog, message):
+    for w in message.winfo_children():
+        if (type(w) == ttk.Entry):
+            entry = w
+            entry.grid_forget()
+            continue
+        w.destroy()
+    try:
+        settings[key]["value"] = int(val)
+        cfg["settings"] = settings
+        config = open(".river_cfg.py", "w")
+        config.write(str(cfg))
+        config.close()
+        dialog.destroy()
+        pageSettings()
+    except:
+        ttk.Label(message, text=lang["settings.type"].get().replace("%1", lang["settings.type.int"].get()), font=theFont).grid()
+        entry.grid()
+
 def editSettings(index):
-    global key
     key = list(settings)[index]
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
     if (settings[key]["type"] == "static"):
-        ttk.Label(message, text=lang["settings.static"].get().replace("%1", lang["sets."+key].get())).grid()  
+        ttk.Label(message, text=lang["settings.static"].get().replace("%1", lang["sets."+key].get()), font=theFont).grid()  
         myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid(column=0, row=0)
         message.grid()
         check.grid()
         dialog.mainloop()
-    ttk.Label(message, text=lang["settings.edit"].get().replace("%1", lang["sets."+key].get())).grid()
+    ttk.Label(message, text=lang["settings.edit"].get().replace("%1", lang["sets."+key].get()), font=theFont).grid()
     if (settings[key]["type"] == "int"):
-        global entry
-        global vals
-        global editSettingsDialog
-        global editSettingsMessage
-        editSettingsDialog = dialog
-        editSettingsMessage = message
-        entry = ttk.Entry(message)
+        entry = ttk.Entry(message, font=theFont)
         entry.grid()
-        global hasTo
-        hasTo = 0
-        myButton(check, text=lang["sel.yes"].get(), command=lambda: (
-            exec("try: int(entry.get())\nexcept: \n    global editSettingsLabel\n    editSettingsLabel = ttk.Label(editSettingsDialog)\n    editSettingsLabel.grid_remove()\n    editSettingsLabel = ttk.Label(editSettingsMessage, text=lang[\"settings.type\"].get().replace(\"%1\", lang[\"settings.type.int\"].get()))\n    editSettingsLabel.grid()\n    hasTo = 1"), 
-            exec("if (hasTo == 0): \n    global settings\n    settings[key][\"value\"] = int(entry.get())\n    editSettingsDialog.destroy()\n    pageSettings()\n    global cfg\n    global settings\n    cfg[\"settings\"]=settings\n    config = open(\".river_cfg.json\", \"w\")\n    config.write(str(cfg))\n    config.close()")
-        )).grid(column=0, row=0)
+        myButton(check, text=lang["sel.yes"].get(), command=lambda: (setSettings(key, entry.get(), dialog, message))).grid(column=0, row=0)
+        myButton(check, text=lang["sel.cancel"].get(), command=lambda: (dialog.destroy(), pageSettings())).grid(column=1, row=0)
     if (settings[key]["type"] == "page"):
         pages = ["launch", "downloads", "mods", "accounts", "settings", "language"]
-        for i in range(len(pages)): 
-            myButton(check, text=lang["title."+pages[i]].get(), command=lambda x=pages[i]: (
-                exec("global settings\nsettings[key][\"value\"]=\""+x+"\"\nglobal cfg\ncfg[\"settings\"] = settings\nglobal config\nconfig = open(\".river_cfg.json\", \"w\")"),
+        for i in range(len(pages)):
+            x = i
+            x = i % 3
+            y = int(i-x == 3)
+            myButton(check, text=lang["title."+pages[i]].get(), command=lambda x=pages[i]: (exec("global settings\nsettings[key][\"value\"]=\""+x+"\"\nglobal cfg\ncfg[\"settings\"] = settings\nglobal config\nconfig = open(\".river_cfg.py\", \"w\")"),
                 config.write(str(cfg)), 
                 config.close(), 
                 dialog.destroy(),
                 pageSettings()
-            )).grid(column=i, row=0)
-    myButton(check, text=lang["sel.no"].get(), command=lambda: (dialog.destroy(), pageSettings())).grid(column=len(pages), row=0)
+            )).grid(column=x, row=y)
+        myButton(check, text=lang["sel.cancel"].get(), command=lambda: (dialog.destroy(), pageSettings())).grid(column=2, row=2)
     col_count, row_count = check.grid_size()
     for col in range(col_count):
-        check.grid_columnconfigure(col, pad=30)
+        check.grid_columnconfigure(col, pad=10)
     message.grid()
     check.grid()
     pageSettings()
@@ -1427,11 +1787,11 @@ def pageSettings():
     global dynamicCur
     pageCur.pack_forget()
     dynamicCur.pack_forget()
-    dynamic = ttk.Frame(root, padding=30)
+    dynamic = ttk.Frame(root)
     listArea = ttk.Frame(dynamic)
     buttonArea = ttk.Frame(dynamic)
-    liK = Listbox(listArea, width=30, height = 10)
-    liV = Listbox(listArea, width=20, height = 10, disabledforeground="black")
+    liK = myList(listArea, width=30, height = 10)
+    liV = myList(listArea, width=20, height = 10)
     for i in settings:
         if (settings[i]["type"] == "static"): 
             content = settings[i]["value"]
@@ -1439,8 +1799,8 @@ def pageSettings():
             content = str(settings[i]["value"])
         if (settings[i]["type"] == "page"): 
             content = lang["title." + settings[i]["value"]].get()
-        liK.insert(END, lang["sets."+i].get())
-        liV.insert(END, content)
+        liK.add(lang["sets."+i].get())
+        liV.add(content)
     liK.grid(column=0, row=0)
     liV.config(state=DISABLED)
     liV.grid(column=1, row=0)
@@ -1458,17 +1818,19 @@ def pageLanguage():
     global dynamicCur
     pageCur.pack_forget()
     dynamicCur.pack_forget()
-    dynamic = ttk.Frame(root, padding=30)
+    dynamic = ttk.Frame(root)
     langs = os.listdir("assets\\lang")
     for i in langs:
         if (i.startswith("_")):
             langs.remove(i)
-    li = Listbox(dynamic, width=50, height = 10)
+    li = myList(dynamic, width=50, height = 10)
     for x in range(len(langs)):
         i = langs[x]
         tmp = open("assets\\lang\\"+i, encoding = "utf-8")
         content = eval(tmp.read())
-        li.insert(END, content["lang.name"] + " (" + content["lang.region"] + ") ")
+        li.add(content["lang.name"] + " (" + content["lang.region"] + ") ")
+        if (i == (cfg["lang"]+".py")):
+            li.activate(x)
         tmp.close()
     languagePage.pack()
     li.grid()
@@ -1477,9 +1839,16 @@ def pageLanguage():
     pageCur = languagePage
     dynamicCur = dynamic
 
+if not (noJava): 
+    if not (cfg["java"] and os.path.isfile("assets\\java\\B\\bin\\java.exe")):
+        cfg["java"] = 1
+        config = open(".river_cfg.py", "w")
+        config.write(str(cfg))
+        config.close()
+        downloadJava()
+
 titleImage = PhotoImage(master=root, file=os.getcwd()+"\\assets\\title\\main.png")
-tabTitle = ttk.Label(tabs, textvariable=lang["title.main"], padding=30, image=titleImage, compound=TOP)
-tabTitle.config(font=("微软雅黑", 13, "bold"))
+tabTitle = ttk.Label(tabs, textvariable=lang["title.main"], padding=30, image=titleImage, compound=TOP, font=("Times New Roman", 12, "bold"))
 tabTitle.grid()
 myTab(tabs, textvariable=lang["title.launch"], command=lambda: pageLaunch()).grid(sticky=W)
 myTab(tabs, textvariable=lang["title.downloads"], command=lambda: pageDownloads()).grid(sticky=W)
@@ -1487,37 +1856,38 @@ myTab(tabs, textvariable=lang["title.mods"], command=lambda: pageMods()).grid(st
 myTab(tabs, textvariable=lang["title.accounts"], command=lambda: pageAccounts()).grid(sticky=W)
 myTab(tabs, textvariable=lang["title.settings"], command=lambda: pageSettings()).grid(sticky=W)
 myTab(tabs, textvariable=lang["title.language"], command=lambda: pageLanguage()).grid(sticky=W)
-ttk.Label(launchPage, textvariable=lang["title.launch"]).grid(column=1, row=0)
-ttk.Label(downloadsPage, textvariable=lang["title.downloads"]).grid(column=1, row=0)
-ttk.Label(modsPage, textvariable=lang["title.mods"]).grid(column=1, row=0)
-ttk.Label(accountsPage, textvariable=lang["title.accounts"]).grid(column=1, row=0)
-ttk.Label(settingsPage, textvariable=lang["title.settings"]).grid(column=1, row=0)
-ttk.Label(languagePage, textvariable=lang["title.language"]).grid(column=1, row=0)
+ttk.Label(launchPage, textvariable=lang["title.launch"], font=theFont).grid(column=1, row=0)
+ttk.Label(downloadsPage, textvariable=lang["title.downloads"], font=theFont).grid(column=1, row=0)
+ttk.Label(modDownloadsPage, textvariable=lang["title.downloads"], font=theFont).grid(column=1, row=0)
+ttk.Label(modsPage, textvariable=lang["title.mods"], font=theFont).grid(column=1, row=0)
+ttk.Label(accountsPage, textvariable=lang["title.accounts"], font=theFont).grid(column=1, row=0)
+ttk.Label(settingsPage, textvariable=lang["title.settings"], font=theFont).grid(column=1, row=0)
+ttk.Label(languagePage, textvariable=lang["title.language"], font=theFont).grid(column=1, row=0)
 
 
 tabs.pack(side=LEFT, anchor=N)
-ttk.Separator(orient=VERTICAL).pack(side=LEFT, fill=Y)
-for x in [tabs, launchPage, downloadsPage, modsPage, accountsPage, settingsPage, languagePage, fabricPage, optifinePage]:
+ttk.Separator(root, orient=VERTICAL).pack(side=LEFT, fill=Y)
+for x in [tabs, launchPage, downloadsPage, modDownloadsPage, modsPage, accountsPage, settingsPage, languagePage, fabricPage, optifinePage]:
     col_count, row_count = x.grid_size()
     for col in range(col_count):
-        x.grid_columnconfigure(col, pad=20)
+        x.grid_columnconfigure(col, pad=7)
     for row in range(row_count):
-        x.grid_rowconfigure(row, pad=20)
+        x.grid_rowconfigure(row, pad=7)
 if (settings["startupPage"]["value"] == "launch"): pageLaunch()
 if (settings["startupPage"]["value"] == "downloads"): pageDownloads()
 if (settings["startupPage"]["value"] == "mods"): pageMods()
 if (settings["startupPage"]["value"] == "accounts"): pageAccounts()
 if (settings["startupPage"]["value"] == "settings"): pageSettings()
 if (settings["startupPage"]["value"] == "language"): pageLanguage()
-checkNew()
+checkNew(noUpdate)
 if (helpToProtect == 1):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.warn"].get())
-    dialog.iconbitmap("icon.ico")
+    dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
     dialog.resizable(0, 0)
     message = ttk.Frame(dialog, padding=30)
     check = ttk.Frame(dialog, padding=30)
-    ttk.Label(message, text=lang["main.warnContent"].get()).grid()
+    ttk.Label(message, text=lang["main.warnContent"].get(), font=theFont).grid()
     myButton(check, text=lang["sel.yes"].get(), command=dialog.destroy).grid()
     message.grid()
     check.grid()
