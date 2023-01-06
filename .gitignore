@@ -2,8 +2,8 @@ __pycache__/
 .minecraft*/
 assets/java/A/*
 assets/java/B/*
-.river_cfg.json
 .river_log.txt
 level.dat
 logs/
 versions/index.py
+.river_cfg.py

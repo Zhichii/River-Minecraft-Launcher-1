@@ -32,6 +32,8 @@ def writeLog(logger, content):
 log = open(".river_log.txt", "w")
 webCache = {}
 helpToProtect = 0
+noJava = 0
+noUpdate = 0
 
 global messages
 messages = []
@@ -357,6 +359,7 @@ def downloadJava():
     import platform
     sys = platform.system()
     try:
+        writeLog("Java downloader", "downloading Java")
         if (sys == "Windows"):
             get("https://download.java.net/openjdk/jdk8u42/ri/openjdk-8u42-b03-windows-i586-14_jul_2022.zip", saveAs="javaA.zip", saveIn=".river_tmp")
             get("https://download.java.net/openjdk/jdk17/ri/openjdk-17+35_windows-x64_bin.zip", saveAs="javaB.zip", saveIn=".river_tmp")
@@ -365,9 +368,10 @@ def downloadJava():
             get("https://download.java.net/openjdk/jdk8u42/ri/openjdk-8u42-b03-linux-x64-14_jul_2022.tar.gz", saveAs="javaA.zip", saveIn=".river_tmp")
             get("https://download.java.net/openjdk/jdk17/ri/openjdk-17+35_linux-x64_bin.tar.gz", saveAs="javaB.zip", saveIn=".river_tmp")
         else:
-            writeLog("java downloader", "unknown system: " + sys + "; downloading java of linux")
+            writeLog("Java downloader", "unknown system: " + sys + "; default to linux")
         zipFileA = zipfile.ZipFile(".river_tmp\\javaA.zip")
         zipFileB = zipfile.ZipFile(".river_tmp\\javaB.zip")
+        writeLog("Java downloader", "extracting Java")
         zipFileA.extractall("assets\\java")
         zipFileB.extractall("assets\\java")
         if ("A" in os.listdir("assets\\java")):
@@ -376,9 +380,9 @@ def downloadJava():
             shutil.rmtree("assets\\java\\B")
         os.rename("assets\\java\\java-se-8u42-ri", "assets\\java\\A")
         os.rename("assets\\java\\jdk-17", "assets\\java\\B")
-        pageDownloadsButton.config(text=lang["downloads.finish"].get().replace("%1", lang["downloads.java"].get()))
+        writeLog("Java downloader", "Java download finished")
     except:
-        writeLog("java downloader", "failed to download java")
+        writeLog("Java downloader", "failed to download Java")
 
 def launchVersion(versionId):
     if (accounts == {}):
@@ -606,12 +610,15 @@ def checkNew(noUpdate):
             if (index["version"]["build"] > curBuild):
                 for i in files:
                     if (i.endswith("\\")):
-                        makeDir(i)
+                        makeDir("assets\\" + i)
                     else:
                         get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/assets/" + i, saveIn = "assets\\" + os.path.split(i)[0])
-                get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/latest.py", saveAs = "river.py")
-                #os.system("start " + sys.excutable + " -m river")
-                #exit()
+                x = requests.get("https://gitee.com/qiu_yixuan/river-launcher-index/raw/master/river.py")
+                y = open("river.py", "w")
+                y.write(x.content.decode("utf-8"))
+                y.close()
+                os.system("start " + sys.executable + " -m river")
+                exit()
         except:
             writeLog("check new", "failed to check launcher update")
 
@@ -1349,36 +1356,28 @@ def pageDownloads():
     dynamicCur = dynamic
 
 def changeMod(index):
-    oldName = os.listdir(".minecraft\\mods")
-    if not (enabled):
-        disabled = 1
-        oldName = name.replace(lang["mods.disabled"].get(), ".jar.disabled")
-        name = name.replace(lang["mods.disabled"].get(), ".jar")
+    oldName = os.listdir(".minecraft\\mods")[index]
+    if (oldName.endswith(".disabled")):
+        name = oldName[:-9]
     else:
-        disabled = 0
-        oldName = name + ".jar"
-        name = name + ".jar.disabled"
+        name = oldName + ".disabled"
     os.rename(".minecraft\\mods\\"+oldName, ".minecraft\\mods\\"+name)
     pageMods(index)
 
-def changeModAll(mode, index):
+def changeModAll(mode):
     mods = os.listdir(".minecraft\\mods")
-    for i in mods:
-        name = i#.replace(".jar", "")
-        writeLog("change mod all", "name: " + name)
-        changeMod(name.replace(".disabled", ""), index, ".disabled" in name)
+    for i in range(len(mods)):
+        if ( (mods[i][-1] == "d") and (mode==0) ):
+            changeMod(i)
+        if ( (mods[i][-1] == "r") and (mode==1) ):
+            changeMod(i)
 
-def processRemoveMod(name):
-    if (name.endswith(lang["mods.disabled"].get())):
-        disabled = 1
-        oldName = name.replace(lang["mods.disabled"].get(), ".jar.disabled")
-    else:
-        disabled = 0
-        oldName = name + ".jar"
+def processRemoveMod(index):
+    oldName = os.listdir(".minecraft\\mods")[index]
     os.remove(".minecraft\\mods\\"+oldName)
     pageDownloads()
 
-def removeMod(name):
+def removeMod(index):
     dialog = Tk("river_dia", "river_dia", " " + lang["main.dialog"].get())
     dialog.iconbitmap("assets\\title\\icon.ico")
     dialog.focus_force()
@@ -1387,7 +1386,7 @@ def removeMod(name):
     check = ttk.Frame(dialog, padding=30)
     ttk.Label(message, text=lang["mods.removePrompt"].get(), font=theFont).grid()
     myButton(check, text=lang["sel.yes"].get(), command=lambda: (
-        processRemoveMod(name), 
+        processRemoveMod(index), 
         dialog.destroy(),
         pageMods()
     )).grid(column=0, row=0)
@@ -1399,9 +1398,9 @@ def removeMod(name):
     check.grid()
     pageMods()
 
-def modsPopup(click, mod, enabled):
+def modsPopup(click, index):
     popup = Menu(root, tearoff=0)
-    popup.add_command(label=lang["mods.remove"].get(), command=lambda: removeMod(mod, enabled))
+    popup.add_command(label=lang["mods.remove"].get(), command=lambda: removeMod(index))
     popup.add_command(label=lang["mods.directory"].get(), command=lambda: subprocess.getstatusoutput("explorer .minecraft\\mods"))
     popup.tk_popup(click.x_root, click.y_root) 
 
@@ -1535,14 +1534,13 @@ def pageMods(sel=None):
             try:
                 x = zipFile.read("fabric.mod.json")
                 x = eval(x)
-                info = + "\n\t" + x["version"] + "; " + x["description"]
-                print(info)
+                info += "\n\t" + x["version"] + "; " + x["description"]
             except:
                 pass
             li.add(name+info, image=img)
         if not (sel is None):
             li.activate(sel)
-        li.bind("<Button-3>", lambda x: modsPopup(x, li.get("active"), li.getImage(ACTIVE)==onImage))
+        li.bind("<Button-3>", lambda x: modsPopup(x, li.index(ACTIVE)))
         li.grid()
     else:
         ttk.Label(message, text=lang["mods.instead"].get(), font=theFont).grid()
@@ -1845,7 +1843,7 @@ if not (noJava):
         config = open(".river_cfg.py", "w")
         config.write(str(cfg))
         config.close()
-        downloadJava()
+        thread._start_new_thread(downloadJava, ())
 
 titleImage = PhotoImage(master=root, file=os.getcwd()+"\\assets\\title\\main.png")
 tabTitle = ttk.Label(tabs, textvariable=lang["title.main"], padding=30, image=titleImage, compound=TOP, font=("Times New Roman", 12, "bold"))
