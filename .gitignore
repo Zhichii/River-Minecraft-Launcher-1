@@ -8,3 +8,4 @@ logs/
 versions/
 .river_tmp/
 .river_cfg.py
+*.zip
