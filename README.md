@@ -1,5 +1,5 @@
 # 河流启动器
-[English](Readme_En.md)
+[English](README_En.md)
 
 一个适用于Windows的用Python做的Minecraft:Java版启动器!
 
