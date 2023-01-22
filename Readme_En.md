@@ -1,4 +1,6 @@
 # RiverLauncher
+[中文](Readme.md)
+
 A Minecraft: Java Edition Launcher for Windows used Python! 
 
 # Warning
