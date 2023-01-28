@@ -1493,7 +1493,7 @@ def pageDownloads():
     liK = myList(listArea, width=20, height = 10)
     liV = myList(listArea, width=55, height = 10)
     if (downloadConfig["minecraft"] != ""):
-        fabric = eval(get("https://meta.fabricmc.net/v2/versions/loader/")
+        fabric = eval(get("https://meta.fabricmc.net/v2/versions/loader/"))
     else:
         fabric = []
     # Minecraft
