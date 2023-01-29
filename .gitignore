@@ -9,3 +9,6 @@ versions/
 .river_tmp/
 .river_cfg.py
 *.zip
+.idea/
+*.exe
+ops.json
