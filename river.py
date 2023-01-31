@@ -96,8 +96,8 @@ def judge(state, command): # 定义判断函数, 参数: 条件, 命令
         pass # 占位
 
 pyglet.font.add_file("assets\\font.ttf") # 使用pyglet加载字体
-pyglet.font.load("Unifont")
-theFont = ("Unifont", 10) # 设置字体
+# pyglet.font.load("Unifont")
+# theFont = ("Unifont", 10) # 设置字体
 
 def myButton(master, textvariable=None, text="", command=""): # 定义按钮函数, 参数: 父控件, 可变文字, 静态文字, 命令
     buttonImage = PhotoImage(master=master, file="assets\\control\\button.png") # 定义按钮图片
