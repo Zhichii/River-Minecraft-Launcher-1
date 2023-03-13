@@ -1,5 +1,3 @@
-## 即将从Python迁移至正在开发的rv语言，这段开发期间内不会更新RvL ##
-
 # 河流启动器
 [English](README_En.md)
 
